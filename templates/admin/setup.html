@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>Setup — {{ APP_NAME }}</title>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0b0d12;
+      color: #e2e8f3;
+      font-family: system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+    .wiz-card {
+      background: #101318;
+      border: 1px solid #1e2232;
+      width: 100%;
+      max-width: 600px;
+      padding: 2.5rem 2.5rem 2rem;
+    }
+    .wiz-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+    .wiz-logo {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      text-decoration: none;
+      color: #e2e8f3;
+      font-size: .85rem;
+      font-weight: 600;
+      letter-spacing: .02em;
+    }
+    .wiz-logo img { height: 18px; width: auto; }
+    .wiz-skip-btn {
+      background: none;
+      border: 1px solid #1e2232;
+      color: #7a8399;
+      font-size: .78rem;
+      padding: .35rem .75rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: color .15s, border-color .15s;
+    }
+    .wiz-skip-btn:hover { color: #e2e8f3; border-color: #272d44; }
+    .wiz-progress {
+      display: flex;
+      gap: .4rem;
+      margin-bottom: 2rem;
+    }
+    .wiz-dot {
+      height: 3px;
+      flex: 1;
+      background: #1e2232;
+      transition: background .25s;
+    }
+    .wiz-dot.done { background: #f27d00; }
+    .wiz-dot.active { background: #f27d00; opacity: .5; }
+    .wiz-step-label {
+      font-size: .7rem;
+      color: #7a8399;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: .6rem;
+    }
+    .wiz-title {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: #e2e8f3;
+      margin-bottom: .6rem;
+      line-height: 1.25;
+    }
+    .wiz-desc {
+      font-size: .9rem;
+      color: #7a8399;
+      line-height: 1.6;
+      margin-bottom: 1.75rem;
+    }
+    .wiz-field { margin-bottom: 1.1rem; }
+    .wiz-field label {
+      display: block;
+      font-size: .8rem;
+      font-weight: 600;
+      color: #b0b8cc;
+      margin-bottom: .35rem;
+      letter-spacing: .02em;
+    }
+    .wiz-field input[type="date"],
+    .wiz-field input[type="text"],
+    .wiz-field textarea {
+      width: 100%;
+      background: #161a24;
+      border: 1px solid #1e2232;
+      color: #e2e8f3;
+      padding: .55rem .75rem;
+      font-size: .88rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .wiz-field input:focus, .wiz-field textarea:focus {
+      border-color: #f27d00;
+    }
+    .wiz-field input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(1) opacity(.4);
+      cursor: pointer;
+    }
+    .wiz-field textarea { min-height: 90px; resize: vertical; }
+    .wiz-dates-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .75rem 1rem;
+    }
+    .wiz-radio-group { display: flex; flex-direction: column; gap: .6rem; }
+    .wiz-radio {
+      display: flex;
+      align-items: flex-start;
+      gap: .75rem;
+      padding: .75rem 1rem;
+      border: 1px solid #1e2232;
+      cursor: pointer;
+      transition: border-color .15s;
+    }
+    .wiz-radio:hover { border-color: #272d44; }
+    .wiz-radio input[type="radio"] { margin-top: .15rem; accent-color: #f27d00; flex-shrink: 0; }
+    .wiz-radio-body { flex: 1; }
+    .wiz-radio-title { font-size: .88rem; font-weight: 600; color: #e2e8f3; }
+    .wiz-radio-desc { font-size: .78rem; color: #7a8399; margin-top: .2rem; line-height: 1.4; }
+    .wiz-domain-hint { font-size: .75rem; color: #7a8399; margin-top: .4rem; }
+    .wiz-section-title {
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: #414861;
+      margin: 1.4rem 0 .6rem;
+    }
+    .wiz-guide-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .6rem;
+    }
+    .wiz-guide-item {
+      background: #161a24;
+      border: 1px solid #1e2232;
+      padding: .75rem 1rem;
+    }
+    .wiz-guide-item a { text-decoration: none; color: inherit; display: block; }
+    .wiz-guide-item a:hover .wiz-guide-name { color: #f27d00; }
+    .wiz-guide-name { font-size: .85rem; font-weight: 600; color: #e2e8f3; margin-bottom: .2rem; }
+    .wiz-guide-desc { font-size: .75rem; color: #7a8399; line-height: 1.4; }
+    .wiz-actions {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      margin-top: 2rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid #1e2232;
+    }
+    .wiz-btn-back {
+      background: none;
+      border: 1px solid #1e2232;
+      color: #7a8399;
+      font-size: .85rem;
+      padding: .55rem 1.1rem;
+      cursor: pointer;
+      font-family: inherit;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+    }
+    .wiz-btn-back:hover { border-color: #272d44; color: #e2e8f3; }
+    .wiz-btn-next {
+      margin-left: auto;
+      background: #f27d00;
+      border: none;
+      color: #fff;
+      font-size: .88rem;
+      font-weight: 600;
+      padding: .6rem 1.5rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background .15s;
+    }
+    .wiz-btn-next:hover { background: #c86200; }
+    .wiz-note {
+      font-size: .75rem;
+      color: #414861;
+      margin-top: 1.25rem;
+      text-align: center;
+    }
+    .wiz-note a { color: #7a8399; }
+    .judge-icon {
+      width: 56px; height: 56px;
+      background: rgba(242,125,0,.1);
+      border: 1px solid rgba(242,125,0,.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    @media (max-width: 520px) {
+      .wiz-card { padding: 1.75rem 1.25rem 1.5rem; }
+      .wiz-dates-grid { grid-template-columns: 1fr; }
+      .wiz-guide-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wiz-card">
+
+    <div class="wiz-header">
+      <span class="wiz-logo">
+        <img src="{{ url_for('static', filename='prompt-a-thon-wordmark-white.svg') }}" alt="{{ APP_NAME }}">
+      </span>
+      <form method="post" action="{{ url_for('admin.setup_wizard_skip') }}" style="margin:0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="wiz-skip-btn">Skip setup</button>
+      </form>
+    </div>
+
+    <div class="wiz-progress" role="progressbar" aria-valuenow="{{ step }}" aria-valuemax="{{ total_steps }}">
+      {% for i in range(1, total_steps + 1) %}
+        <div class="wiz-dot {% if i < step %}done{% elif i == step %}active{% endif %}"></div>
+      {% endfor %}
+    </div>
+
+    <div class="wiz-step-label">Step {{ step }} of {{ total_steps }}</div>
+
+    {% if current_user.is_admin %}
+
+      {% if step == 1 %}
+        <h1 class="wiz-title">Welcome to the Admin Panel</h1>
+        <p class="wiz-desc">
+          Let&rsquo;s get <strong style="color:#e2e8f3;">{{ APP_NAME }}</strong> configured.
+          This takes just a few minutes &mdash; we&rsquo;ll walk you through the timeline,
+          who can sign up, and where to find everything. You can skip any step and
+          configure it later from Admin &rsaquo; Settings.
+        </p>
+        <p class="wiz-desc" style="margin-top:-.75rem; padding:.75rem 1rem; background:#161a24; border-left:2px solid #f27d00; font-size:.82rem;">
+          Registration and submissions are <strong style="color:#f27d00;">closed by default</strong>.
+          We&rsquo;ll help you open them on the next step.
+        </p>
+        <form method="post" action="{{ url_for('admin.setup_wizard_step', step=1) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="wiz-actions" style="border-top:none; padding-top:0; margin-top:1.25rem;">
+            <button type="submit" class="wiz-btn-next">Get started &rarr;</button>
+          </div>
+        </form>
+
+      {% elif step == 2 %}
+        <h1 class="wiz-title">Competition Timeline</h1>
+        <p class="wiz-desc">
+          Set the key dates for your competition. Leave any field blank to skip that milestone.
+          If you don&rsquo;t enter dates, registration and submissions will stay closed until
+          you configure them in Settings.
+        </p>
+        <form method="post" action="{{ url_for('admin.setup_wizard_step', step=2) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="wiz-section-title">Registration window</div>
+          <div class="wiz-dates-grid">
+            <div class="wiz-field">
+              <label for="reg_open">Opens</label>
+              <input type="date" id="reg_open" name="registration_open_date"
+                     value="{{ dates.registration_open_date }}">
+            </div>
+            <div class="wiz-field">
+              <label for="reg_close">Closes</label>
+              <input type="date" id="reg_close" name="registration_close_date"
+                     value="{{ dates.registration_close_date }}">
+            </div>
+          </div>
+          <div class="wiz-section-title">Event &amp; submissions</div>
+          <div class="wiz-dates-grid">
+            <div class="wiz-field">
+              <label for="event_day">Event day</label>
+              <input type="date" id="event_day" name="event_day_date"
+                     value="{{ dates.event_day_date }}">
+            </div>
+            <div class="wiz-field">
+              <label for="sub_open">Submissions open</label>
+              <input type="date" id="sub_open" name="submission_open_date"
+                     value="{{ dates.submission_open_date }}">
+            </div>
+            <div class="wiz-field">
+              <label for="sub_deadline">Submission deadline</label>
+              <input type="date" id="sub_deadline" name="submission_deadline_date"
+                     value="{{ dates.submission_deadline_date }}">
+            </div>
+            <div class="wiz-field">
+              <label for="results">Results announced</label>
+              <input type="date" id="results" name="results_date"
+                     value="{{ dates.results_date }}">
+            </div>
+          </div>
+          <div class="wiz-actions">
+            <a href="{{ url_for('admin.setup_wizard_back', step=2) }}" class="wiz-btn-back">&larr; Back</a>
+            <button type="submit" class="wiz-btn-next">Save &amp; continue &rarr;</button>
+          </div>
+        </form>
+
+      {% elif step == 3 %}
+        <h1 class="wiz-title">Who Can Sign Up?</h1>
+        <p class="wiz-desc">
+          Control which email addresses are allowed to register. You can change this
+          at any time in Admin &rsaquo; Settings &rsaquo; Email allowlist.
+        </p>
+        <form method="post" action="{{ url_for('admin.setup_wizard_step', step=3) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="wiz-radio-group" id="allowlist-radios">
+            <label class="wiz-radio">
+              <input type="radio" name="email_allowlist_mode" value="allowlist"
+                     {% if email_allowlist_mode != 'allow_all' %}checked{% endif %}
+                     onchange="document.getElementById('domains-wrap').style.display=''">
+              <div class="wiz-radio-body">
+                <div class="wiz-radio-title">Specific email domains only</div>
+                <div class="wiz-radio-desc">Only addresses from the domains you list can sign up (e.g. university.ac.uk).</div>
+              </div>
+            </label>
+            <label class="wiz-radio">
+              <input type="radio" name="email_allowlist_mode" value="allow_all"
+                     {% if email_allowlist_mode == 'allow_all' %}checked{% endif %}
+                     onchange="document.getElementById('domains-wrap').style.display='none'">
+              <div class="wiz-radio-body">
+                <div class="wiz-radio-title">Allow anyone to sign up</div>
+                <div class="wiz-radio-desc">Anyone with a valid email address can register.</div>
+              </div>
+            </label>
+          </div>
+          <div id="domains-wrap" {% if email_allowlist_mode == 'allow_all' %}style="display:none"{% endif %}>
+            <div class="wiz-field" style="margin-top:1.1rem;">
+              <label for="domains">Allowed domains (one per line or comma-separated)</label>
+              <textarea id="domains" name="domains" placeholder="university.ac.uk&#10;example.edu">{{ email_allowlist_domains | join('\n') }}</textarea>
+              <div class="wiz-domain-hint">Do not include the @ symbol. Subdomains must be listed separately.</div>
+            </div>
+          </div>
+          <div class="wiz-actions">
+            <a href="{{ url_for('admin.setup_wizard_back', step=3) }}" class="wiz-btn-back">&larr; Back</a>
+            <button type="submit" class="wiz-btn-next">Save &amp; continue &rarr;</button>
+          </div>
+        </form>
+
+      {% elif step == 4 %}
+        <h1 class="wiz-title">You&rsquo;re All Set!</h1>
+        <p class="wiz-desc">
+          Here&rsquo;s a quick overview of the admin panel. Everything is accessible from the
+          sidebar on the left.
+        </p>
+        <div class="wiz-guide-grid">
+          <div class="wiz-guide-item">
+            <a href="{{ url_for('admin.users') }}">
+              <div class="wiz-guide-name">Users</div>
+              <div class="wiz-guide-desc">Manage participants, ban users, assign roles.</div>
+            </a>
+          </div>
+          <div class="wiz-guide-item">
+            <a href="{{ url_for('admin.submissions') }}">
+              <div class="wiz-guide-name">Submissions</div>
+              <div class="wiz-guide-desc">Review, score, and manage competition entries.</div>
+            </a>
+          </div>
+          <div class="wiz-guide-item">
+            <a href="{{ url_for('admin.settings') }}">
+              <div class="wiz-guide-name">Settings</div>
+              <div class="wiz-guide-desc">Timeline dates, email allowlist, announcements.</div>
+            </a>
+          </div>
+          <div class="wiz-guide-item">
+            <a href="{{ url_for('admin.edit_content') }}">
+              <div class="wiz-guide-name">Content</div>
+              <div class="wiz-guide-desc">Customise page text, FAQs, tasks, and academy.</div>
+            </a>
+          </div>
+          <div class="wiz-guide-item">
+            <a href="{{ url_for('admin.config_style') }}">
+              <div class="wiz-guide-name">Theme</div>
+              <div class="wiz-guide-desc">Colours, fonts, dark/light mode, animations.</div>
+            </a>
+          </div>
+          <div class="wiz-guide-item">
+            <a href="{{ url_for('admin.server_status') }}">
+              <div class="wiz-guide-name">Server</div>
+              <div class="wiz-guide-desc">System metrics, CPU, memory, application logs.</div>
+            </a>
+          </div>
+        </div>
+        <form method="post" action="{{ url_for('admin.setup_wizard_step', step=4) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="wiz-actions">
+            <a href="{{ url_for('admin.setup_wizard_back', step=4) }}" class="wiz-btn-back">&larr; Back</a>
+            <button type="submit" class="wiz-btn-next">Go to Admin Dashboard &rarr;</button>
+          </div>
+        </form>
+      {% endif %}
+
+    {% else %}
+
+      {% if step == 1 %}
+        <div class="judge-icon" aria-hidden="true">&#9878;</div>
+        <h1 class="wiz-title">Welcome, Judge!</h1>
+        <p class="wiz-desc">
+          You&rsquo;ve been given judge access to <strong style="color:#e2e8f3;">{{ APP_NAME }}</strong>.
+          Your role is to review and score participant submissions. Each submission
+          can receive scores across up to three criteria, as configured by the admin.
+        </p>
+        <p class="wiz-desc" style="margin-top:-.5rem;">
+          You&rsquo;ll see only the submissions that are waiting for review, and you can
+          leave private notes for other judges or the admin team.
+        </p>
+        <form method="post" action="{{ url_for('admin.setup_wizard_step', step=1) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="wiz-actions" style="border-top:none; padding-top:0; margin-top:1.25rem;">
+            <button type="submit" class="wiz-btn-next">Get started &rarr;</button>
+          </div>
+        </form>
+
+      {% elif step == 2 %}
+        <h1 class="wiz-title">Ready to Review</h1>
+        <p class="wiz-desc">
+          The <strong style="color:#e2e8f3;">Submissions</strong> panel is your main workspace.
+          You can filter by status, open individual entries to read them, assign scores
+          for the criteria you&rsquo;ve been assigned, and update the review status.
+        </p>
+        <p class="wiz-desc" style="margin-top:-.75rem; padding:.75rem 1rem; background:#161a24; border-left:2px solid #f27d00; font-size:.82rem;">
+          Scoring is anonymous &mdash; you won&rsquo;t see participant names until after
+          the review period, protecting scoring integrity.
+        </p>
+        <form method="post" action="{{ url_for('admin.setup_wizard_step', step=2) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="wiz-actions" style="border-top:none; padding-top:0; margin-top:1.25rem;">
+            <a href="{{ url_for('admin.setup_wizard_back', step=2) }}" class="wiz-btn-back">&larr; Back</a>
+            <button type="submit" class="wiz-btn-next">Go to Submissions &rarr;</button>
+          </div>
+        </form>
+      {% endif %}
+
+    {% endif %}
+
+    <p class="wiz-note">
+      You can re-run this guide any time from
+      <a href="{{ url_for('admin.index') }}">Admin</a>.
+      All settings can be changed in
+      <a href="{{ url_for('admin.settings') }}">Settings</a>.
+    </p>
+
+  </div>
+</body>
+</html>

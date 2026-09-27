@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Data request — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container narrow">
+    <header class="section-head">
+      <h1>Data subject request</h1>
+      <p class="lead">
+        Under UK GDPR you have the right to access, correct, port or erase
+        your personal data. Submit a request below and we will respond within
+        30 days.
+      </p>
+    </header>
+
+    {% if blocked %}
+    <div class="card" style="padding:1.5rem; border-left: 4px solid var(--danger);">
+      <h2 style="margin-top:0; color:var(--danger); font-size:1.1rem;">⚠ Request cannot be submitted here</h2>
+      <p>We were unable to process your request via this form. Please contact us directly and we will handle it manually.</p>
+      <p>Please contact us directly at <a href="mailto:{{ contact }}"><strong>{{ contact }}</strong></a> and we will handle your request securely and manually.</p>
+    </div>
+    {% else %}
+    <form method="post" class="card form-card" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="field">
+        <label for="email">Your email address <span class="req">*</span></label>
+        <input id="email" name="email" type="email" required maxlength="254"
+               autocomplete="email"
+               value="{% if current_user.is_authenticated %}{{ current_user.email }}{% else %}{{ request.form.email or '' }}{% endif %}">
+        <small class="muted">We will use this address to verify your identity and respond.</small>
+      </div>
+
+      <div class="field">
+        <label for="request_type">Type of request <span class="req">*</span></label>
+        <select id="request_type" name="request_type" required>
+          <option value="">Choose one…</option>
+          {% for k, v in request_types.items() %}
+            <option value="{{ k }}" {% if request.form.request_type == k %}selected{% endif %}>{{ v }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="detail">Additional detail (optional)</label>
+        <textarea id="detail" name="detail" rows="6" maxlength="2000"
+                  placeholder="If your request is for rectification, tell us what is incorrect.">{{ request.form.detail or '' }}</textarea>
+        <small class="muted">Up to 2,000 characters. Encrypted at rest.</small>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Submit request</button>
+        <a class="btn btn-ghost" href="{{ url_for('public.privacy') }}">Read privacy policy</a>
+      </div>
+
+      <p class="muted small">
+        Submitting this form is rate-limited (3 per hour, 10 per day) to
+        prevent abuse. We will contact you at the email you provide.
+      </p>
+    </form>
+  </div>
+</section>
+    {% endif %}
+{% endblock %}

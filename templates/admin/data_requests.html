@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% set active_admin_tab = 'data_requests' %}
+{% block title %}Data requests — Admin — {{ APP_NAME }}{% endblock %}
+
+{% block head_extra %}
+<style>
+
+.admin-page .admin-container { max-width: 1200px; }
+.dr-table-wrap { overflow-x: auto; }
+.dr-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  min-width: 820px;
+}
+.dr-table th {
+  background: var(--bg-soft);
+  border-bottom: 2px solid var(--border);
+  padding: 0.55rem 0.75rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.dr-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.6rem 0.75rem;
+  vertical-align: top;
+}
+.dr-table tbody tr:last-child td { border-bottom: none; }
+.dr-table tbody tr:hover td { background: var(--bg-soft); }
+.dr-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: flex-start; }
+.dr-detail { max-width: 200px; font-size: 0.8rem; color: var(--text-muted); white-space: pre-wrap; word-break: break-word; }
+.clock-warn { color: var(--danger); font-size: 0.75rem; font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section admin-page">
+  <div class="container admin-container">
+    <div class="admin-layout">
+      {% include "admin/_sidebar.html" %}
+      <div class="admin-main">
+        <header class="section-head">
+          <h1>GDPR data requests</h1>
+          <p class="lead">Subject access, erasure, portability and rectification requests. The 30-day GDPR clock starts at the date received.</p>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for cat, msg in messages %}
+            <div class="alert alert-{{ cat }}" style="margin-bottom:1rem;">{{ msg }}</div>
+          {% endfor %}
+        {% endwith %}
+
+        <div class="card" style="padding:0; overflow:hidden;">
+          {% if requests %}
+            <div class="dr-table-wrap">
+              <table class="dr-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Received</th>
+                    <th>Email</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Detail</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for r in requests %}
+                  {% set age_days = ((now - r.created_at).total_seconds() / 86400) | int %}
+                  <tr>
+                    <td><code>{{ r.id }}</code></td>
+                    <td>
+                      <time datetime="{{ r.created_at.isoformat() }}Z">
+                        {{ r.created_at.strftime('%Y-%m-%d') }}
+                      </time>
+                      {% if r.status != 'resolved' and age_days >= 25 %}
+                        <div class="clock-warn">⚠ {{ age_days }}d / 30d</div>
+                      {% endif %}
+                    </td>
+                    <td><code class="pii-email">{{ r.email }}</code></td>
+                    <td>
+                      <span class="badge badge-info">{{ r.request_type }}</span>
+                    </td>
+                    <td>
+                      <span class="badge badge-{{ r.status }}">{{ r.status | capitalize }}</span>
+                    </td>
+                    <td class="dr-detail">{{ r.detail or '' }}</td>
+                    <td>
+                      {% if r.status != 'resolved' %}
+                        <div class="dr-actions">
+
+                          <form method="post"
+                                action="{{ url_for('admin.data_request_resolve', req_id=r.id) }}"
+                                style="margin:0;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-ghost"
+                                    title="Mark as resolved without further action">
+                              Mark resolved
+                            </button>
+                          </form>
+
+                          {% if r.request_type != 'rectification' %}
+                            <a href="{{ url_for('admin.data_request_preview', req_id=r.id) }}"
+                               class="btn btn-sm btn-primary">
+                              {% if r.request_type == 'access' %}Auto-resolve →{% endif %}
+                              {% if r.request_type == 'erasure' %}Erase data →{% endif %}
+                              {% if r.request_type == 'portability' %}Export CSV →{% endif %}
+                            </a>
+                          {% endif %}
+                        </div>
+                      {% else %}
+                        <span class="muted small">
+                          Resolved {{ r.resolved_at.strftime('%Y-%m-%d') if r.resolved_at else '' }}
+                        </span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div style="padding:2rem; text-align:center;">
+              <p class="muted">No data requests on record.</p>
+            </div>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

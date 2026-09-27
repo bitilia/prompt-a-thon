@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% set active_admin_tab = 'email_analytics' %}
+{% block title %}Email Analytics — Admin — {{ APP_NAME }}{% endblock %}
+
+{% block head_extra %}
+<style>
+.ea-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.ea-stat-card {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .9rem 1.1rem;
+  text-align: center;
+}
+.ea-stat-value {
+  font-size: 1.8rem; font-weight: 800; color: var(--primary);
+  line-height: 1; margin-bottom: .25rem;
+}
+.ea-stat-label {
+  font-size: .72rem; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .06em; font-weight: 600;
+}
+.open-rate-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: .35rem; }
+.open-rate-fill { height: 100%; background: var(--primary); border-radius: 2px; }
+
+.search-bar { display: flex; gap: .5rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
+.search-bar input, .search-bar select { min-width: 0; }
+
+.ea-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.ea-table th {
+  background: var(--bg-soft); border-bottom: 2px solid var(--border);
+  padding: .5rem .75rem; text-align: left;
+  font-size: .72rem; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-muted); white-space: nowrap;
+}
+.ea-table td { border-bottom: 1px solid var(--border); padding: .5rem .75rem; vertical-align: middle; }
+.ea-table tbody tr:last-child td { border-bottom: none; }
+.ea-table tbody tr:hover td { background: var(--bg-soft); }
+
+.badge-cat {
+  display: inline-block; padding: .15rem .5rem; border-radius: 999px;
+  font-size: .7rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  white-space: nowrap;
+}
+.badge-otp         { background: #1e2533; color: #7a8399; }
+.badge-submit      { background: #1e3a5f; color: #60a5fa; }
+.badge-certificate { background: #14320e; color: #4ade80; }
+.badge-gdpr        { background: #3b1f1f; color: #f87171; }
+.badge-notification{ background: #2d2518; color: #fbbf24; }
+
+.status-opened { color: #4ade80; font-weight: 600; font-size: .82rem; }
+.status-sent   { color: var(--text-muted); font-size: .82rem; }
+
+.btn-disabled { opacity: .35; cursor: not-allowed; pointer-events: none; }
+
+.pagination-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .6rem 1rem; background: var(--bg-soft); border-top: 1px solid var(--border);
+  font-size: .85rem; color: var(--text-muted); flex-wrap: wrap; gap: .5rem;
+}
+.page-links { display: flex; gap: .3rem; }
+.page-link {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 2rem; height: 2rem; padding: 0 .4rem;
+  border-radius: var(--radius-sm); border: 1px solid var(--border);
+  font-size: .85rem; text-decoration: none; color: var(--text);
+  transition: background var(--t-fast);
+}
+.page-link:hover { background: var(--bg-softer); }
+.page-link.is-active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.page-link[aria-disabled="true"] { opacity: .4; pointer-events: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section admin-page">
+  <div class="container admin-container" style="max-width:1280px;">
+    <div class="admin-layout">
+      {% include "admin/_sidebar.html" %}
+      <div class="admin-main">
+
+        <header class="section-head">
+          <h1>Email Analytics</h1>
+          <p class="lead">Track every transactional email sent by the system.</p>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for cat, msg in messages %}
+            <div class="alert alert-{{ cat }}" style="margin-bottom:1rem;">{{ msg }}</div>
+          {% endfor %}
+        {% endwith %}
+
+        {% set open_pct = ((opened_count / trackable_count * 100) | round(1)) if trackable_count > 0 else 0 %}
+        <div class="ea-stats">
+          <div class="ea-stat-card">
+            <div class="ea-stat-value">{{ total }}</div>
+            <div class="ea-stat-label">Total sent</div>
+          </div>
+          <div class="ea-stat-card">
+            <div class="ea-stat-value">{{ trackable_count }}</div>
+            <div class="ea-stat-label">Tracked</div>
+          </div>
+          <div class="ea-stat-card">
+            <div class="ea-stat-value">{{ opened_count }}</div>
+            <div class="ea-stat-label">Opened</div>
+          </div>
+          <div class="ea-stat-card">
+            <div class="ea-stat-value">{{ open_pct }}%</div>
+            <div class="ea-stat-label">Open rate
+              <span title="Calculated only from emails with tracking enabled"
+                    style="cursor:help;font-size:.85em;">&#9432;</span>
+            </div>
+            <div class="open-rate-bar">
+              <div class="open-rate-fill" style="width:{{ open_pct }}%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <form method="get" class="search-bar" action="{{ url_for('admin.email_analytics') }}">
+          <input type="search" name="q" class="form-control" style="flex:1;min-width:200px;"
+                 placeholder="Search recipient email…" value="{{ q }}" autocomplete="off">
+          <select name="category" class="form-control" style="width:160px;">
+            <option value="">All categories</option>
+            {% for cat in categories %}
+              <option value="{{ cat }}" {% if category == cat %}selected{% endif %}>{{ cat | title }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+          {% if q or category %}
+            <a href="{{ url_for('admin.email_analytics') }}" class="btn btn-ghost btn-sm">Clear</a>
+          {% endif %}
+        </form>
+
+        <div class="card" style="padding:0;overflow:hidden;">
+          {% if logs %}
+          <div style="overflow-x:auto;">
+            <table class="ea-table">
+              <thead>
+                <tr>
+                  <th>Recipient</th>
+                  <th>Subject</th>
+                  <th>Category</th>
+                  <th>Sent</th>
+                  <th>Status</th>
+                  <th style="text-align:right;width:80px;">Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for entry in logs %}
+                <tr>
+                  <td style="font-family:var(--font-mono);font-size:.82rem;white-space:nowrap;">{{ entry.to_email }}</td>
+                  <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.85rem;">
+                    {{ entry.subject }}
+                  </td>
+                  <td>
+                    <span class="badge-cat badge-{{ entry.category }}">{{ entry.category }}</span>
+                  </td>
+                  <td style="white-space:nowrap;font-size:.82rem;color:var(--text-muted);">
+                    {{ entry.sent_at.strftime('%d %b %Y') if entry.sent_at else '—' }}<br>
+                    <span class="muted small">{{ entry.sent_at.strftime('%H:%M') if entry.sent_at else '' }}</span>
+                  </td>
+                  <td style="white-space:nowrap;">
+                    {% if entry.opened_at %}
+                      <span class="status-opened">&#10003; Opened</span><br>
+                      <span class="muted small">{{ entry.opened_at.strftime('%d %b %H:%M') }}</span>
+                    {% elif entry.tracking_pixel_id %}
+                      <span class="status-sent">Sent</span>
+                    {% else %}
+                      <span class="status-sent">—</span>
+                    {% endif %}
+                  </td>
+                  <td style="text-align:right;">
+                    {% if entry.category == 'otp' %}
+                      <span class="btn btn-ghost btn-sm btn-disabled" title="OTP emails do not store body content">View</span>
+                    {% else %}
+                      <a href="{{ url_for('admin.email_analytics_detail', log_id=entry.id) }}"
+                         class="btn btn-ghost btn-sm">View</a>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination-bar">
+            <span>
+              {% set start = ((pagination.page - 1) * pagination.per_page) + 1 %}
+              {% set end   = [pagination.page * pagination.per_page, pagination.total] | min %}
+              Showing {{ start }}–{{ end }} of {{ pagination.total }}
+              {% if q %} matching <strong>{{ q }}</strong>{% endif %}
+            </span>
+            <div class="page-links">
+              <a class="page-link"
+                 href="{{ url_for('admin.email_analytics', q=q, category=category, page=pagination.prev_num) }}"
+                 {% if not pagination.has_prev %}aria-disabled="true"{% endif %}>&#8249;</a>
+              {% for p in pagination.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=1) %}
+                {% if p %}
+                  <a class="page-link {% if p == pagination.page %}is-active{% endif %}"
+                     href="{{ url_for('admin.email_analytics', q=q, category=category, page=p) }}">{{ p }}</a>
+                {% else %}
+                  <span class="page-link" style="pointer-events:none;">…</span>
+                {% endif %}
+              {% endfor %}
+              <a class="page-link"
+                 href="{{ url_for('admin.email_analytics', q=q, category=category, page=pagination.next_num) }}"
+                 {% if not pagination.has_next %}aria-disabled="true"{% endif %}>&#8250;</a>
+            </div>
+          </div>
+
+          {% else %}
+          <div style="padding:2rem;text-align:center;">
+            <p class="muted">
+              {% if q or category %}No emails match your filter.
+                <a href="{{ url_for('admin.email_analytics') }}">Clear filters</a>
+              {% else %}No emails logged yet.{% endif %}
+            </p>
+          </div>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

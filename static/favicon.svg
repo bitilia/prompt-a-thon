@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="prompt-a-thon">
+  <rect width="64" height="64" rx="14" fill="#2563eb"/>
+  <path d="M22 16h14a12 12 0 0 1 0 24h-8v8h-6V16Zm6 6v12h8a6 6 0 0 0 0-12h-8Z"
+        fill="#ffffff"/>
+</svg>

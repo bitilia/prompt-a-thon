@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% set active_admin_tab = 'edit_content' %}
+{% block title %}Edit page content — Admin — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<section class="section admin-page">
+  <div class="container admin-container">
+    <div class="admin-layout">
+      {% include "admin/_sidebar.html" %}
+      <div class="admin-main">
+        <header class="section-head">
+          <h1>Edit page content</h1>
+          <p class="lead">Change titles, subtitles, and body text across the site. Blank fields revert to defaults.</p>
+        </header>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for cat, msg in messages %}
+            <div class="alert alert-{{ cat }}" style="margin-bottom:1rem;">{{ msg }}</div>
+          {% endfor %}
+        {% endwith %}
+        <form method="post" class="form-card card" novalidate>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <h2 class="h3">Home page — About section</h2>
+          <div class="field">
+            <label for="home_about_heading">Heading</label>
+            <input id="home_about_heading" name="home_about_heading" type="text"
+                   value="{{ content.home_about_heading }}"
+                   placeholder="{{ defaults.home_about_heading }}">
+          </div>
+          <div class="field">
+            <label for="home_about_body">Body <span class="muted small">(separate paragraphs with a blank line)</span></label>
+            <textarea id="home_about_body" name="home_about_body" rows="5">{{ content.home_about_body }}</textarea>
+          </div>
+
+          <h2 class="h3" style="margin-top:1.5rem;">Home page — Three pillars</h2>
+          {% for key_h, key_b, label in [
+            ('home_learn_heading',   'home_learn_body',   'Learn'),
+            ('home_compete_heading', 'home_compete_body', 'Compete'),
+            ('home_submit_heading',  'home_submit_body',  'Submit'),
+          ] %}
+          <div style="display:grid;grid-template-columns:1fr 2fr;gap:0.75rem;margin-bottom:0.75rem;align-items:start;">
+            <div class="field" style="margin:0;">
+              <label for="{{ key_h }}">{{ label }} — heading</label>
+              <input id="{{ key_h }}" name="{{ key_h }}" type="text"
+                     value="{{ content[key_h] }}" placeholder="{{ defaults[key_h] }}">
+            </div>
+            <div class="field" style="margin:0;">
+              <label for="{{ key_b }}">{{ label }} — body</label>
+              <textarea id="{{ key_b }}" name="{{ key_b }}" rows="2">{{ content[key_b] }}</textarea>
+            </div>
+          </div>
+          {% endfor %}
+
+          <h2 class="h3" style="margin-top:1.5rem;">Dashboard pages</h2>
+          {% for key_t, key_s, label in [
+            ('academy_title',     'academy_subtitle',     'Academy'),
+            ('tasks_title',       'tasks_subtitle',       'Tasks'),
+            ('submissions_title', 'submissions_subtitle', 'My submissions'),
+            ('submit_title',      'submit_subtitle',      'Submit work'),
+          ] %}
+          <div style="display:grid;grid-template-columns:1fr 2fr;gap:0.75rem;margin-bottom:0.75rem;align-items:start;">
+            <div class="field" style="margin:0;">
+              <label for="{{ key_t }}">{{ label }} — title</label>
+              <input id="{{ key_t }}" name="{{ key_t }}" type="text"
+                     value="{{ content[key_t] }}" placeholder="{{ defaults[key_t] }}">
+            </div>
+            <div class="field" style="margin:0;">
+              <label for="{{ key_s }}">{{ label }} — subtitle</label>
+              <textarea id="{{ key_s }}" name="{{ key_s }}" rows="2">{{ content[key_s] }}</textarea>
+            </div>
+          </div>
+          {% endfor %}
+
+          <div class="form-actions" style="margin-top:1.5rem;">
+            <button type="submit" class="btn btn-primary">Save content</button>
+            <a href="{{ url_for('admin.index') }}" class="btn btn-ghost">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

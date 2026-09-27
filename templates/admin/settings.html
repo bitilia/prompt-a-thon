@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% set active_admin_tab = 'settings' %}
+{% block title %}Settings — Admin — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<section class="section admin-page">
+  <div class="container admin-container">
+    <div class="admin-layout">
+      {% include "admin/_sidebar.html" %}
+      <div class="admin-main">
+    <header class="section-head">
+      <h1>Settings</h1>
+      <p class="lead">Event timeline and registration / submission controls.</p>
+    </header>
+
+    {% include "admin/_update_banner.html" %}
+
+    <form method="post" class="card form-card" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <h2 class="h3">Event timeline</h2>
+      <p class="muted">Dates are inclusive (UTC). Leave blank to ignore that boundary.</p>
+
+      <div class="grid-2">
+        <div class="field">
+          <label for="registration_open_date">Registration opens</label>
+          <input id="registration_open_date" name="registration_open_date" type="date"
+                 value="{{ values.registration_open_date }}">
+        </div>
+        <div class="field">
+          <label for="registration_close_date">Registration closes</label>
+          <input id="registration_close_date" name="registration_close_date" type="date"
+                 value="{{ values.registration_close_date }}">
+        </div>
+        <div class="field">
+          <label for="event_day_date">Event day</label>
+          <input id="event_day_date" name="event_day_date" type="date"
+                 value="{{ values.event_day_date }}">
+        </div>
+        <div class="field">
+          <label for="submission_open_date">Submission window opens</label>
+          <input id="submission_open_date" name="submission_open_date" type="date"
+                 value="{{ values.submission_open_date }}">
+        </div>
+        <div class="field">
+          <label for="submission_deadline_date">Submission deadline</label>
+          <input id="submission_deadline_date" name="submission_deadline_date" type="date"
+                 value="{{ values.submission_deadline_date }}">
+        </div>
+        <div class="field">
+          <label for="results_date">Results announced</label>
+          <input id="results_date" name="results_date" type="date"
+                 value="{{ values.results_date }}">
+        </div>
+      </div>
+
+      <hr>
+
+      <h2 class="h3">Manual overrides</h2>
+      <p class="muted">Force a window open or closed regardless of the dates above. Leave blank to use the dates.</p>
+
+      <fieldset class="field">
+        <legend>Registration</legend>
+        <label class="radio">
+          <input type="radio" name="registration_override" value="" {% if overrides.registration_override == "" %}checked{% endif %}>
+          Use timeline (default)
+        </label>
+        <label class="radio">
+          <input type="radio" name="registration_override" value="1" {% if overrides.registration_override == "1" %}checked{% endif %}>
+          Force open
+        </label>
+        <label class="radio">
+          <input type="radio" name="registration_override" value="0" {% if overrides.registration_override == "0" %}checked{% endif %}>
+          Force closed
+        </label>
+      </fieldset>
+
+      <fieldset class="field">
+        <legend>Submissions</legend>
+        <label class="radio">
+          <input type="radio" name="submission_override" value="" {% if overrides.submission_override == "" %}checked{% endif %}>
+          Use timeline (default)
+        </label>
+        <label class="radio">
+          <input type="radio" name="submission_override" value="1" {% if overrides.submission_override == "1" %}checked{% endif %}>
+          Force open
+        </label>
+        <label class="radio">
+          <input type="radio" name="submission_override" value="0" {% if overrides.submission_override == "0" %}checked{% endif %}>
+          Force closed
+        </label>
+      </fieldset>
+
+      <hr>
+
+      <h2 class="h3">Post-submission message</h2>
+      <p class="muted">
+        Shown on the confirmation page after a participant submits work.
+        Supports a small markdown subset: paragraphs, <code>**bold**</code>,
+        <code>*italic*</code>, <code>`code`</code>, and
+        <code>[label](https://...)</code> for links (links open in a new tab).
+      </p>
+      <div class="field">
+        <label for="submission_success_message">Message (markdown)</label>
+        <textarea id="submission_success_message" name="submission_success_message"
+                  rows="8" maxlength="5000">{{ submission_success_message }}</textarea>
+      </div>
+
+      <hr>
+
+      <h2 class="h3">File submissions</h2>
+      <div class="field">
+        <label for="accepted_files">Accepted file types</label>
+        <select id="accepted_files" name="accepted_files">
+          <option value="pdf" {% if accepted_files == 'pdf' %}selected{% endif %}>PDF only (recommended)</option>
+          <option value="pdf_docx"
+                  {% if accepted_files == 'pdf_docx' %}selected{% endif %}
+                  {% if not docx_available %}disabled style="color:var(--text-muted);"{% endif %}>
+            PDF and DOCX{% if not docx_available %} (unavailable — conversion tools not installed){% endif %}
+          </option>
+          <option value="none" {% if accepted_files == 'none' %}selected{% endif %}>None (hide file upload)</option>
+        </select>
+        <small class="muted">
+          Controls what file types participants can attach. Takes effect immediately on save.
+          {% if not docx_available %}
+          <span style="color:var(--warning);">DOCX conversion needs LibreOffice and a running conversion daemon.</span>
+          {% endif %}
+        </small>
+      </div>
+
+            <h2 class="h3">Email domain allowlist</h2>
+      <p class="muted">
+        Controls which email addresses can sign in. The admin email's domain
+        is always allowed regardless of these rules.
+      </p>
+
+      <fieldset class="field" id="allowlist">
+        <legend>Mode</legend>
+        <label class="radio">
+          <input type="radio" name="email_allowlist_mode" value="allowlist"
+                 {% if email_allowlist_mode == 'allowlist' %}checked{% endif %}>
+          Allowlist - only listed domains can sign in (default)
+        </label>
+        <label class="radio">
+          <input type="radio" name="email_allowlist_mode" value="allow_all"
+                 {% if email_allowlist_mode == 'allow_all' %}checked{% endif %}>
+          Allow all - anyone with a valid email can sign in
+        </label>
+      </fieldset>
+
+      <hr>
+
+      <h2 class="h3">Announcement banner</h2>
+      <p class="muted">
+        Show a single line of text at the top of every page. Useful for
+        outage notices, deadline reminders, or last-minute changes.
+      </p>
+      <div class="field">
+        <label class="switch">
+          <input type="checkbox" name="announcement_enabled" value="1"
+                 {% if announcement_enabled %}checked{% endif %}>
+          <span class="switch-track"><span class="switch-thumb"></span></span>
+          <span class="switch-label">Show announcement banner</span>
+        </label>
+      </div>
+      <div class="field">
+        <label for="announcement_text">Banner text</label>
+        <input id="announcement_text" name="announcement_text" type="text"
+               maxlength="280" value="{{ announcement_text }}">
+        <small class="muted">Plain text, up to 280 characters.</small>
+      </div>
+
+      <hr>
+
+      <h2 class="h3">Lockdown mode</h2>
+      <p class="muted">
+        When on, every public and participant page returns the lockdown
+        message. The admin panel and sign-in routes remain reachable so you
+        can turn it back off.
+      </p>
+      <div class="field">
+        <label class="switch switch-danger">
+          <input type="checkbox" name="lockdown_enabled" value="1"
+                 {% if lockdown_enabled %}checked{% endif %}>
+          <span class="switch-track"><span class="switch-thumb"></span></span>
+          <span class="switch-label">Enable lockdown mode</span>
+        </label>
+      </div>
+      <div class="field">
+        <label for="lockdown_message">Lockdown message</label>
+        <input id="lockdown_message" name="lockdown_message" type="text"
+               maxlength="280" value="{{ lockdown_message }}">
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Save settings</button>
+      </div>
+    </form>
+
+    <article class="card">
+      <h3 class="h4">Allowlisted domains</h3>
+      {% if email_allowlist_domains %}
+        <ul class="domain-list">
+          {% for d in email_allowlist_domains %}
+            <li>
+              <code>{{ d }}</code>
+              <form method="post" action="{{ url_for('admin.allowlist_remove') }}" class="inline-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="domain" value="{{ d }}">
+                <button type="submit" class="btn btn-ghost btn-sm">Remove</button>
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted">No domains configured yet.</p>
+      {% endif %}
+
+      <form method="post" action="{{ url_for('admin.allowlist_add') }}"
+            class="inline-form add-domain-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="text" name="domain" placeholder="example.edu" required
+               autocomplete="off"
+               pattern="[A-Za-z0-9.\-]+"
+               aria-label="Domain to add">
+        <button type="submit" class="btn btn-primary btn-sm">Add to allowlist</button>
+      </form>
+      <p class="muted small">
+        Subdomains are NOT matched implicitly. Add e.g. <code>students.example.edu</code>
+        separately if needed.
+      </p>
+    </article>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

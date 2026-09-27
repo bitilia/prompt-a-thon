@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}500 Server error — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container narrow center">
+    <p class="error-code" aria-hidden="true">500</p>
+    <h1>Server error</h1>
+    <p class="lead">Something went wrong on our side. The error has been logged.</p>
+    <p>
+      <a class="btn btn-primary" href="{{ url_for('public.index') }}">Go home</a>
+    </p>
+  </div>
+</section>
+{% endblock %}

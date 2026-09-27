@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% set active_admin_tab = 'academy_config' %}
+{% block title %}Academy JSON — Admin — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<section class="section admin-page">
+  <div class="container admin-container">
+    <div class="admin-layout">
+      {% include "admin/_sidebar.html" %}
+      <div class="admin-main">
+    <header class="section-head">
+      <h1>Academy configuration</h1>
+      <p class="lead">Edit the live <code>academy.json</code> used by the academy.</p>
+    </header>
+
+    {% if error %}
+      <div class="card alert alert-error">
+        <strong>Validation error:</strong>
+        <pre class="content-pre">{{ error }}</pre>
+      </div>
+    {% endif %}
+
+    <form method="post" class="card form-card js-json-form" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="field">
+        <label for="config">academy.json</label>
+        <textarea id="config" name="config" rows="28" class="code-area" spellcheck="false" autocomplete="off">{{ config_text }}</textarea>
+        <small class="muted">
+          Schema: <code>{ "modules": [ { "id", "title", "description", "items": [ { "id", "title", "type": "video|reading|article", "url" or "content" } ] } ] }</code>.
+          Use only YouTube nocookie embeds for videos.
+        </small>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Save academy.json</button>
+      </div>
+    </form>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

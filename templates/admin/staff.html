@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% set active_admin_tab = 'staff' %}
+{% block title %}Staff — Admin — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<section class="section admin-page">
+  <div class="container admin-container">
+    <div class="admin-layout">
+      {% include "admin/_sidebar.html" %}
+      <div class="admin-main">
+        <header class="section-head">
+          <h1>Staff &amp; Team</h1>
+          <p class="lead">Manage the team shown on the public homepage below the FAQ. Split into <strong>Made by</strong> and <strong>Staff</strong> categories.</p>
+        </header>
+
+        <details class="card" style="padding:1.2rem;" {% if not members %}open{% endif %}>
+          <summary style="font-weight:600; cursor:pointer; list-style:none; display:flex; align-items:center; gap:0.5rem;">
+            <span style="font-size:1.1rem;">+</span> Add team member
+          </summary>
+          <form method="post" action="{{ url_for('admin.staff_add') }}" enctype="multipart/form-data"
+                style="margin-top:1rem; display:grid; grid-template-columns:1fr 1fr; gap:0.8rem;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="field" style="grid-column:1/2;">
+              <label>Name</label>
+              <input type="text" name="name" required maxlength="120" placeholder="Ada Lovelace">
+            </div>
+            <div class="field" style="grid-column:2/3;">
+              <label>Category</label>
+              <select name="category">
+                <option value="made_by">Made by</option>
+                <option value="staff" selected>Staff</option>
+              </select>
+            </div>
+            <div class="field" style="grid-column:1/-1;">
+              <label>Job / description</label>
+              <input type="text" name="job" maxlength="200" placeholder="Lead developer · Oxford">
+            </div>
+            <div class="field" style="grid-column:1/-1;">
+              <label>Photo <span class="muted small">(square, max 512 KB — will be shown as a circle)</span></label>
+              <input type="file" name="image" accept="image/*">
+            </div>
+            <div style="grid-column:1/-1;">
+              <button type="submit" class="btn btn-primary btn-sm">Add member</button>
+            </div>
+          </form>
+        </details>
+
+        {% for cat_key, cat_label in [('made_by', 'Made by'), ('staff', 'Staff')] %}
+          {% set cat_members = members | selectattr('category', 'equalto', cat_key) | list %}
+          {% if cat_members %}
+          <div class="card" style="padding:1.2rem;">
+            <h2 class="h4" style="margin-bottom:0.8rem;">{{ cat_label }}</h2>
+            <div style="display:flex; flex-wrap:wrap; gap:0.8rem;">
+              {% for m in cat_members %}
+              <div style="border:1px solid var(--border); border-radius:0; padding:0.8rem; width:220px; display:flex; flex-direction:column; gap:0.5rem;">
+
+                {% if m.image %}
+                  <img src="{{ m.image }}" alt="{{ m.name }}"
+                       style="width:56px;height:56px;border-radius:0;object-fit:cover;border:2px solid var(--border);">
+                {% else %}
+                  <div style="width:56px;height:56px;border-radius:0;background:var(--surface-2,#e2e8f0);display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:var(--muted);">
+                    {{ m.name[0] | upper if m.name else '?' }}
+                  </div>
+                {% endif %}
+                <div>
+                  <div style="font-weight:600;font-size:0.9rem;">{{ m.name }}</div>
+                  <div class="muted small">{{ m.job }}</div>
+                </div>
+
+                <details style="font-size:0.8rem;">
+                  <summary style="cursor:pointer; color:var(--accent);">Edit</summary>
+                  <form method="post" action="{{ url_for('admin.staff_edit', member_id=m.id) }}"
+                        enctype="multipart/form-data" style="margin-top:0.5rem; display:flex; flex-direction:column; gap:0.4rem;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="text" name="name" value="{{ m.name }}" maxlength="120" placeholder="Name" style="font-size:0.8rem;">
+                    <select name="category" style="font-size:0.8rem;">
+                      <option value="made_by" {% if m.category == 'made_by' %}selected{% endif %}>Made by</option>
+                      <option value="staff" {% if m.category == 'staff' %}selected{% endif %}>Staff</option>
+                    </select>
+                    <input type="text" name="job" value="{{ m.job }}" maxlength="200" placeholder="Job / description" style="font-size:0.8rem;">
+                    <input type="file" name="image" accept="image/*" style="font-size:0.78rem;">
+                    <div style="display:flex; gap:0.4rem; margin-top:0.2rem;">
+                      <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                    </div>
+                  </form>
+                  <form method="post" action="{{ url_for('admin.staff_delete', member_id=m.id) }}"
+                        style="margin-top:0.3rem;"
+                        onsubmit="return confirm('Remove {{ m.name }}?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+                  </form>
+                </details>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+        {% endfor %}
+
+        {% if not members %}
+          <p class="muted">No team members yet. Add one above.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

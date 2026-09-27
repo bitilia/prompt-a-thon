@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% set active_dashboard_tab = 'submissions' %}
+{% block title %}{{ PAGE_CONTENT.submissions_title }} &middot; {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container">
+    {% include "dashboard/_nav.html" %}
+
+    <header class="section-head">
+      <h1>{{ PAGE_CONTENT.submissions_title }}</h1>
+      <p class="lead">{{ PAGE_CONTENT.submissions_subtitle }}</p>
+    </header>
+
+    {% if submissions %}
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Submission ID</th>
+              <th>Title</th>
+              <th>Task</th>
+              <th>Submitted</th>
+              <th>Status</th>
+              <th>File</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in submissions %}
+              <tr>
+                <td><code>{{ s.anonymous_id or '—' }}</code></td>
+                <td>{{ s.title }}</td>
+                <td>{{ task_titles.get(s.task_id, s.task_id) }}</td>
+                <td>
+                  <time datetime="{{ s.submitted_at.isoformat() }}Z">
+                    {{ s.submitted_at | long_date }}
+                  </time>
+                </td>
+                <td><span class="badge badge-{{ s.status }}">{{ s.status_label }}</span></td>
+                <td>
+                  {% if s.file_path %}
+                    <div style="display:flex;flex-direction:column;gap:0.2rem;">
+                      <a href="{{ url_for('participant.download', anon_id=s.anonymous_id) }}"
+                         title="{{ s.filename or '' }}">{{ (s.filename or 'File 1')[:15] }}{% if (s.filename or '')|length > 15 %}&hellip;{% endif %}</a>
+                      {% for ef in s.extra_files %}
+                        <a href="{{ url_for('participant.download_extra_file', file_id=ef.id) }}"
+                           title="{{ ef.filename }}">{{ ef.filename[:15] }}{% if ef.filename|length > 15 %}&hellip;{% endif %}</a>
+                      {% endfor %}
+                    </div>
+                  {% else %}—{% endif %}
+                </td>
+              </tr>
+              {% if s.judge_notes %}
+                <tr class="sub-notes">
+                  <td colspan="6">
+                    <strong>Judge feedback:</strong>
+                    <span class="multiline">{{ s.judge_notes }}</span>
+                  </td>
+                </tr>
+              {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="card empty-state">
+        <p>You have not submitted anything yet.</p>
+        <a class="btn btn-primary" href="{{ url_for('participant.submit') }}">Submit your first piece</a>
+      </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

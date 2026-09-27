@@ -1,0 +1,10 @@
+[Unit]
+Description=Run prompt-a-thon competition maintenance jobs every 15 minutes
+
+[Timer]
+OnBootSec=120
+OnUnitActiveSec=900
+AccuracySec=60
+
+[Install]
+WantedBy=timers.target

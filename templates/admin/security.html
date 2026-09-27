@@ -1,0 +1,463 @@
+{% extends "base.html" %}
+{% set active_admin_tab = 'security' %}
+{% block title %}Security — Admin — {{ APP_NAME }}{% endblock %}
+
+{% block head_extra %}
+<style>
+.sec-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1rem; margin-bottom:1.5rem; }
+.sec-card { background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:.9rem 1.1rem; }
+.sec-card.danger  { border-color:var(--danger); background:rgba(220,38,38,.04); }
+.sec-card.warning { border-color:var(--warning); }
+.sec-card.ok      { border-color:#22c55e; }
+.sec-num   { font-size:1.9rem; font-weight:800; color:var(--primary); line-height:1; margin:0 0 .2rem; }
+.sec-label { font-size:.78rem; color:var(--text-muted); margin:0; }
+.sparkline { display:block; width:100%; height:48px; margin-top:.5rem; }
+.insight-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.5rem; }
+.insight-card { background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:1rem 1.1rem; }
+.insight-card h3 { font-size:.82rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); margin:0 0 .75rem; }
+.top-list { list-style:none; margin:0; padding:0; }
+.top-list li { display:flex; justify-content:space-between; align-items:center; padding:.3rem 0; border-bottom:1px solid var(--border); font-size:.84rem; }
+.top-list li:last-child { border-bottom:none; }
+.bar-fill { display:inline-block; height:8px; border-radius:4px; background:var(--primary); vertical-align:middle; margin-left:.5rem; transition:width .3s; }
+.pct-ring { display:flex; align-items:center; gap:1.5rem; }
+.ring-svg { flex-shrink:0; }
+.ring-stats { flex:1; }
+.ring-stat { font-size:.82rem; margin:.2rem 0; display:flex; align-items:center; gap:.4rem; }
+.ring-dot  { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+#live-log-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+#live-log-table th { background:var(--bg-soft); border-bottom:2px solid var(--border); padding:.4rem .65rem; text-align:left; font-size:.72rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text-muted); }
+#live-log-table td { border-bottom:1px solid var(--border); padding:.35rem .65rem; }
+.log-blocked { background:rgba(220,38,38,.06); }
+.badge-cc  { display:inline-block; font-size:.72rem; font-weight:700; background:var(--bg-soft); border:1px solid var(--border); border-radius:3px; padding:.1rem .35rem; font-family:var(--font-mono); }
+.lockdown-active { border-color:var(--danger) !important; background:rgba(220,38,38,.06) !important; }
+@media (max-width:900px) { .insight-row { grid-template-columns:1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section admin-page">
+  <div class="container admin-container" style="max-width:1400px;">
+    <div class="admin-layout">
+      {% include "admin/_sidebar.html" %}
+      <div class="admin-main">
+
+        <header class="section-head" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+          <div>
+            <h1>Security</h1>
+            <p class="lead" style="margin:0;">Access monitoring, threat signals, and access controls.</p>
+          </div>
+          <div style="display:flex;gap:.5rem;align-items:center;">
+            <span id="live-indicator" style="width:8px;height:8px;border-radius:50%;background:#22c55e;"></span>
+            <span class="muted small">Live — updates every 10 s</span>
+          </div>
+        </header>
+
+        {% if lockdown %}
+        <div class="alert alert-danger" style="margin-bottom:1rem;font-weight:600;">
+          Emergency lockdown is ACTIVE — new registrations and submissions are blocked.
+          <a href="{{ settings_url }}" class="btn btn-ghost btn-sm" style="margin-left:1rem;">Manage in Settings</a>
+        </div>
+        {% endif %}
+
+        <div class="sec-grid">
+          <div class="sec-card">
+            <p class="sec-num">{{ total_24h }}</p>
+            <p class="sec-label">Connections (24 h)</p>
+          </div>
+          <div class="sec-card">
+            <p class="sec-num">{{ unique_ips }}</p>
+            <p class="sec-label">Unique IPs (24 h)</p>
+          </div>
+          <div class="sec-card">
+            <p class="sec-num">{{ active_1h }}</p>
+            <p class="sec-label">Active IPs (1 h)</p>
+          </div>
+          <div class="sec-card {% if blocked_24h > 0 %}danger{% endif %}">
+            <p class="sec-num" style="color:{% if blocked_24h %}var(--danger){% else %}var(--primary){% endif %};">{{ blocked_24h }}</p>
+            <p class="sec-label">Blocked (24 h)</p>
+          </div>
+          <div class="sec-card {% if fail_pct > 20 %}danger{% elif fail_pct > 5 %}warning{% else %}ok{% endif %}">
+            <p class="sec-num" style="color:{% if fail_pct > 20 %}var(--danger){% elif fail_pct > 5 %}var(--warning){% else %}#22c55e{% endif %};">{{ fail_pct }}%</p>
+            <p class="sec-label">Login fail rate (24 h)</p>
+          </div>
+          <div class="sec-card {% if danger_files > 0 %}warning{% endif %}">
+            <p class="sec-num" style="color:{% if danger_files %}var(--warning){% else %}var(--primary){% endif %};">{{ danger_files }}</p>
+            <p class="sec-label">Suspicious files (7 d)</p>
+          </div>
+          <div class="sec-card {% if lockdown %}lockdown-active danger{% endif %}">
+            <p class="sec-num" style="font-size:1rem;padding-top:.45rem;color:{% if lockdown %}var(--danger){% else %}#22c55e{% endif %};">
+              {% if lockdown %}LOCKDOWN{% else %}Normal{% endif %}
+            </p>
+            <p class="sec-label">System status</p>
+          </div>
+          <div class="sec-card">
+            <p class="sec-num" style="font-size:1rem;padding-top:.45rem;">{{ restrict_mode|title }}</p>
+            <p class="sec-label">Country restriction</p>
+          </div>
+        </div>
+
+        <div class="card" style="padding:1rem 1.25rem;margin-bottom:1.5rem;">
+          <p style="margin:0 0 .5rem;font-size:.82rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;">Connections — last 24 hours (hourly)</p>
+          <canvas id="sparkline" class="sparkline"></canvas>
+        </div>
+
+        <div class="insight-row">
+
+          <div class="insight-card">
+            <h3>Login activity (24 h)</h3>
+            {% set total_auth = logins_ok + logins_fail + logins_block %}
+            {% if total_auth %}
+            <div class="pct-ring">
+              <svg class="ring-svg" width="80" height="80" viewBox="0 0 80 80">
+                {% set r = 34 %}{% set cx = 40 %}{% set cy = 40 %}
+                {% set circ = 2 * 3.14159 * r %}
+                <circle cx="{{ cx }}" cy="{{ cy }}" r="{{ r }}" fill="none" stroke="var(--border)" stroke-width="10"/>
+                {% if logins_ok %}
+                <circle cx="{{ cx }}" cy="{{ cy }}" r="{{ r }}" fill="none" stroke="#22c55e" stroke-width="10"
+                  stroke-dasharray="{{ (logins_ok / total_auth * circ)|round(1) }} {{ circ }}"
+                  stroke-dashoffset="{{ (circ / 4)|round(1) }}" transform="rotate(-90 {{ cx }} {{ cy }})"/>
+                {% endif %}
+                {% if logins_fail %}
+                {% set ok_arc = (logins_ok / total_auth * circ) %}
+                <circle cx="{{ cx }}" cy="{{ cy }}" r="{{ r }}" fill="none" stroke="var(--danger)" stroke-width="10"
+                  stroke-dasharray="{{ (logins_fail / total_auth * circ)|round(1) }} {{ circ }}"
+                  stroke-dashoffset="{{ (circ / 4 - ok_arc)|round(1) }}" transform="rotate(-90 {{ cx }} {{ cy }})"/>
+                {% endif %}
+                <text x="{{ cx }}" y="{{ cy+5 }}" text-anchor="middle" font-size="13" font-weight="700" fill="var(--text)">{{ total_auth }}</text>
+              </svg>
+              <div class="ring-stats">
+                <div class="ring-stat"><span class="ring-dot" style="background:#22c55e;"></span>{{ logins_ok }} successful</div>
+                <div class="ring-stat"><span class="ring-dot" style="background:var(--danger);"></span>{{ logins_fail }} failed</div>
+                <div class="ring-stat"><span class="ring-dot" style="background:var(--warning);"></span>{{ logins_block }} blocked</div>
+              </div>
+            </div>
+            {% else %}
+            <p class="muted small">No login attempts in the last 24 hours.</p>
+            {% endif %}
+          </div>
+
+          <div class="insight-card">
+            <h3>Top countries (24 h)</h3>
+            {% if top_countries %}
+            {% set max_cc = top_countries[0].cnt %}
+            <ul class="top-list">
+              {% for row in top_countries %}
+              <li>
+                <span>
+                  <span class="badge-cc">{{ row.country_code }}</span>
+                  {{ iso_countries.get(row.country_code, row.country_code) }}
+                </span>
+                <span style="display:flex;align-items:center;gap:.5rem;white-space:nowrap;">
+                  {{ row.cnt }}
+                  <span class="bar-fill" style="width:{{ [(row.cnt / max_cc * 60)|int, 4]|max }}px;"></span>
+                </span>
+              </li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            <p class="muted small">No country data yet.</p>
+            {% endif %}
+          </div>
+
+          <div class="insight-card">
+            <h3>Top login failure IPs (24 h)</h3>
+            {% if top_fail_ips %}
+            {% set max_ip = top_fail_ips[0].cnt %}
+            <ul class="top-list">
+              {% for row in top_fail_ips %}
+              <li>
+                <span class="pii-ip" style="font-family:var(--font-mono);">{{ row.ip_address or '—' }}</span>
+                <span style="display:flex;align-items:center;gap:.5rem;white-space:nowrap;color:var(--danger);font-weight:600;">
+                  {{ row.cnt }}×
+                  <span class="bar-fill" style="background:var(--danger);width:{{ [(row.cnt / max_ip * 60)|int, 4]|max }}px;"></span>
+                </span>
+              </li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            <p class="muted small">No failed logins in the last 24 hours.</p>
+            {% endif %}
+          </div>
+
+          <div class="insight-card">
+            <h3>File safety (7 d)</h3>
+            {% set total_files = clean_files + danger_files %}
+            {% if total_files %}
+            <div style="margin-bottom:.75rem;">
+              <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:.3rem;">
+                <span>Clean</span><span style="color:#22c55e;font-weight:600;">{{ clean_files }}</span>
+              </div>
+              <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden;">
+                <div style="background:#22c55e;height:100%;width:{{ (clean_files/total_files*100)|round|int }}%;border-radius:4px;"></div>
+              </div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:.3rem;">
+                <span>Suspicious (active content stripped)</span><span style="color:var(--warning);font-weight:600;">{{ danger_files }}</span>
+              </div>
+              <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden;">
+                <div style="background:var(--warning);height:100%;width:{{ (danger_files/total_files*100)|round|int }}%;border-radius:4px;"></div>
+              </div>
+            </div>
+            {% else %}
+            <p class="muted small">No files uploaded in the last 7 days.</p>
+            {% endif %}
+          </div>
+
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 320px;gap:1.5rem;align-items:start;">
+
+          <div class="card" style="padding:0;overflow:hidden;">
+            <div style="padding:.65rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+              <strong>Live connection log</strong>
+              <form method="post" action="{{ url_for('admin.security_settings') }}"
+                    onsubmit="return confirm('Clear all connection log entries?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="clear_log">
+                <button type="submit" class="btn btn-ghost btn-sm">Clear</button>
+              </form>
+            </div>
+            <div style="overflow-x:auto;max-height:380px;overflow-y:auto;">
+              <table id="live-log-table">
+                <thead><tr>
+                  <th>Time</th><th>IP</th><th>CC</th><th>User</th><th>Method</th><th>Path</th>
+                </tr></thead>
+                <tbody id="log-body"><tr><td colspan="6" class="muted small" style="padding:.75rem;">Loading…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div>
+
+            <div class="card" style="margin-bottom:1rem; {% if lockdown %}border-color:var(--danger);background:rgba(220,38,38,.04);{% endif %}">
+              <h3 class="h4" style="margin-top:0;color:var(--danger);">Emergency lockdown</h3>
+              <p class="muted small">Blocks all new registrations and submissions site-wide.</p>
+              {% if lockdown %}
+              <p class="muted small" style="margin-bottom:.75rem;">
+                Also manageable in <a href="{{ settings_url }}">Settings → Lockdown mode</a>.
+              </p>
+              {% endif %}
+              <form method="post" action="{{ url_for('admin.security_settings') }}"
+                    onsubmit="return confirm('{% if lockdown %}Disable emergency lockdown?{% else %}Enable emergency lockdown? This blocks all new registrations and submissions.{% endif %}');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="lockdown">
+                <input type="hidden" name="enabled" value="{{ '0' if lockdown else '1' }}">
+                <button type="submit" class="btn {% if lockdown %}btn-ghost{% else %}btn-danger{% endif %} btn-sm">
+                  {% if lockdown %}Disable lockdown{% else %}Enable lockdown{% endif %}
+                </button>
+              </form>
+            </div>
+
+            <div class="card" style="margin-bottom:1rem;">
+              <h3 class="h4" style="margin-top:0;">Country restriction</h3>
+              <form method="post" action="{{ url_for('admin.security_settings') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="country_restrict">
+                <input type="hidden" name="countries" id="countries-hidden" value="{{ restrict_list|join(' ') }}">
+                <div class="field">
+                  <label for="cr-mode">Mode</label>
+                  <select id="cr-mode" name="mode">
+                    <option value="off"       {% if restrict_mode=='off' %}selected{% endif %}>Off</option>
+                    <option value="blocklist" {% if restrict_mode=='blocklist' %}selected{% endif %}>Block listed</option>
+                    <option value="allowlist" {% if restrict_mode=='allowlist' %}selected{% endif %}>Allow listed only</option>
+                  </select>
+                </div>
+                <div class="field" id="country-picker-wrap" {% if restrict_mode=='off' %}style="display:none;"{% endif %}>
+                  <label>Countries</label>
+                  <input id="country-search" type="search" placeholder="Search…" autocomplete="off" style="width:100%;margin-bottom:.3rem;">
+                  <div id="country-dropdown" style="display:none;position:relative;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);max-height:160px;overflow-y:auto;"></div>
+                  <div id="selected-countries" style="display:flex;flex-wrap:wrap;gap:.25rem;margin-top:.3rem;min-height:20px;"></div>
+                </div>
+                <div class="field" id="block-msg-wrap" {% if restrict_mode=='off' %}style="display:none;"{% endif %}>
+                  <label for="block_message">Message shown to blocked visitors</label>
+                  <textarea id="block_message" name="block_message" rows="2"
+                            placeholder="Access to this site is not available in your region.">{{ block_message }}</textarea>
+                  <small class="muted">Leave blank for the default message.</small>
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm">Save</button>
+              </form>
+            </div>
+
+            <div class="card">
+              <h3 class="h4" style="margin-top:0;">IP blocklist</h3>
+              <form method="post" action="{{ url_for('admin.security_settings') }}" style="display:flex;gap:.4rem;margin-bottom:.5rem;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="block_ip">
+                <input type="text" name="ip" placeholder="1.2.3.4" style="flex:1;font-family:var(--font-mono);" autocomplete="off">
+                <button type="submit" class="btn btn-danger btn-sm">Block</button>
+              </form>
+              {% if blocked_ips %}
+              <div style="display:flex;flex-direction:column;gap:.25rem;max-height:130px;overflow-y:auto;">
+                {% for ip in blocked_ips %}
+                <div style="display:flex;align-items:center;justify-content:space-between;font-size:.82rem;">
+                  <span class="pii-ip" style="font-family:var(--font-mono);">{{ ip }}</span>
+                  <form method="post" action="{{ url_for('admin.security_settings') }}" style="margin:0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="unblock_ip">
+                    <input type="hidden" name="ip" value="{{ ip }}">
+                    <button type="submit" class="btn btn-ghost btn-sm" style="padding:.1rem .4rem;">&#x2715;</button>
+                  </form>
+                </div>
+                {% endfor %}
+              </div>
+              {% else %}
+              <p class="muted small">No IPs blocked.</p>
+              {% endif %}
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+(function() {
+  var ISO = {{ iso_countries | tojson }};
+
+  var hourly = {{ hourly_json | safe }};
+  var canvas = document.getElementById("sparkline");
+  if (canvas && canvas.getContext) {
+    var ctx = canvas.getContext("2d");
+    var W = canvas.parentElement.clientWidth - 40;
+    canvas.width = W; canvas.height = 48;
+    var maxH = Math.max(1, Math.max.apply(null, hourly));
+    var barW = Math.floor(W / 24) - 2;
+    var style = getComputedStyle(document.documentElement);
+    var primary = style.getPropertyValue("--primary").trim() || "#3b82f6";
+    hourly.forEach(function(v, i) {
+      var h = Math.max(2, Math.round(v / maxH * 44));
+      ctx.fillStyle = v ? primary : "#e5e7eb";
+      ctx.beginPath();
+      ctx.roundRect(i * (barW+2), 48 - h, barW, h, [2]);
+      ctx.fill();
+    });
+
+    ctx.fillStyle = "#9ca3af"; ctx.font = "10px system-ui";
+    ["24h ago","18h ago","12h ago","6h ago","Now"].forEach(function(label, i) {
+      ctx.fillText(label, i * W/4, 46);
+    });
+  }
+
+  function refreshLog() {
+    fetch("{{ url_for('admin.security_live_log') }}")
+      .then(function(r){return r.json();})
+      .then(function(data){
+        var tbody = document.getElementById("log-body");
+        var piiHidden = false;
+        try { piiHidden = localStorage.getItem("pii_hidden") === "1"; } catch(e){}
+        if (!data.events || !data.events.length) {
+          tbody.innerHTML = '<tr><td colspan="6" class="muted small" style="padding:.75rem;">No events yet.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = data.events.map(function(e) {
+          var ip   = piiHidden ? "\u2731.\u2731.\u2731.\u2731" : e.ip;
+          var user = e.user ? (piiHidden ? "\u2731\u2731\u2731" : e.user) : "<em class='muted'>anon</em>";
+          return "<tr class='" + (e.blocked ? "log-blocked" : "") + "'>" +
+            "<td style='font-family:var(--font-mono);white-space:nowrap;'>" + e.ts + "</td>" +
+            "<td class='pii-ip' style='font-family:var(--font-mono);' data-pii-original='" + e.ip + "'>" + ip + "</td>" +
+            "<td><span class='badge-cc'>" + e.cc + "</span></td>" +
+            "<td class='pii-email' style='font-size:.78rem;' data-pii-original='" + (e.user||"") + "'>" + user + "</td>" +
+            "<td><span class='badge badge-info' style='font-size:.7rem;'>" + e.method + "</span></td>" +
+            "<td style='max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' title='" + e.path + "'>" + e.path + "</td>" +
+            "</tr>";
+        }).join("");
+      }).catch(function(){});
+  }
+  refreshLog();
+  setInterval(refreshLog, 10000);
+
+  setInterval(function() {
+    var d = document.getElementById("live-indicator");
+    if (d) d.style.opacity = d.style.opacity === "0.3" ? "1" : "0.3";
+  }, 1000);
+
+  var selectedCC  = new Set({{ restrict_list | tojson }});
+  var searchEl    = document.getElementById("country-search");
+  var dropdown    = document.getElementById("country-dropdown");
+  var chipsEl     = document.getElementById("selected-countries");
+  var hiddenEl    = document.getElementById("countries-hidden");
+  var modeEl      = document.getElementById("cr-mode");
+  var pickerWrap  = document.getElementById("country-picker-wrap");
+
+  function updateHidden() { hiddenEl.value = Array.from(selectedCC).join(" "); }
+
+  function renderChips() {
+    chipsEl.innerHTML = "";
+    selectedCC.forEach(function(cc) {
+      var s = document.createElement("span");
+      s.className = "badge-cc";
+      s.style.cssText = "cursor:pointer;padding:.15rem .4rem;";
+      s.innerHTML = cc + " " + (ISO[cc]||"") + ' <span style="color:var(--danger);margin-left:.25rem;">&#x2715;</span>';
+      s.addEventListener("click", function() {
+        selectedCC.delete(cc);
+        renderChips();
+        updateHidden();
+        updateAllowlistWarning();
+      });
+      chipsEl.appendChild(s);
+    });
+    if (!selectedCC.size) chipsEl.innerHTML = '<span class="muted small">None selected</span>';
+  }
+
+  function renderDropdown(q) {
+    dropdown.innerHTML = "";
+    Object.entries(ISO).filter(function(e) {
+      return !selectedCC.has(e[0]) && (e[0].toLowerCase().includes(q)||e[1].toLowerCase().includes(q));
+    }).slice(0,25).forEach(function(e) {
+      var d = document.createElement("div");
+      d.style.cssText = "padding:.35rem .7rem;cursor:pointer;font-size:.84rem;";
+      d.textContent = e[0] + " — " + e[1];
+      d.addEventListener("mousedown", function(ev) {
+        ev.preventDefault();
+        selectedCC.add(e[0]); renderChips(); updateHidden();
+        searchEl.value = ""; dropdown.style.display = "none";
+      });
+      d.addEventListener("mouseover", function(){ d.style.background="var(--bg-soft)"; });
+      d.addEventListener("mouseout",  function(){ d.style.background=""; });
+      dropdown.appendChild(d);
+    });
+    dropdown.style.display = dropdown.children.length ? "block" : "none";
+  }
+
+  if (searchEl) {
+    searchEl.addEventListener("focus",  function(){ renderDropdown(searchEl.value.toLowerCase()); });
+    searchEl.addEventListener("input",  function(){ renderDropdown(searchEl.value.toLowerCase()); });
+    searchEl.addEventListener("blur",   function(){ setTimeout(function(){ dropdown.style.display="none"; }, 150); });
+
+    var allowlistWarn = (function() {
+      var el = document.createElement("p");
+      el.className = "muted small";
+      el.style.color = "var(--warning)";
+      el.style.margin = ".3rem 0 0";
+      el.style.display = "none";
+      el.textContent = "Add at least one country before saving — an empty allowlist will be reset to Off.";
+      if (chipsEl && chipsEl.parentNode) chipsEl.parentNode.insertBefore(el, chipsEl.nextSibling);
+      return el;
+    })();
+
+    function updateAllowlistWarning() {
+      if (!modeEl) return;
+      var show = (modeEl.value === "allowlist" && selectedCC.size === 0);
+      allowlistWarn.style.display = show ? "block" : "none";
+    }
+
+    if (modeEl) {
+      modeEl.addEventListener("change", function(){
+        var off = modeEl.value === "off";
+        if (pickerWrap) pickerWrap.style.display = off ? "none" : "";
+        var bm = document.getElementById("block-msg-wrap");
+        if (bm) bm.style.display = off ? "none" : "";
+        updateAllowlistWarning();
+      });
+    }
+    renderChips(); updateHidden(); updateAllowlistWarning();
+  }
+})();
+</script>
+{% endblock %}

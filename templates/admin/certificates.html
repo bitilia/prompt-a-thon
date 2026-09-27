@@ -1,0 +1,477 @@
+{% extends "base.html" %}
+{% set active_admin_tab = 'certificates' %}
+{% block title %}Certificates — Admin — {{ APP_NAME }}{% endblock %}
+
+{% block head_extra %}
+<style>
+
+.cert-config { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+@media (max-width: 700px) { .cert-config { grid-template-columns: 1fr; } }
+
+.toggle-label {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.88rem; cursor: pointer; user-select: none;
+}
+.toggle-label input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+
+.sub-toggle-wrap {
+  display: none; margin-top: .5rem;
+  padding: .5rem .75rem; background: var(--bg-softer);
+  border-left: 3px solid var(--primary); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.sub-toggle-wrap.visible { display: block; }
+
+.pdf-preview-panel {
+  display: none; margin-top: 1rem;
+  border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
+}
+.pdf-preview-panel.visible { display: block; }
+.pdf-preview-bar {
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  padding: .5rem .75rem; background: var(--bg-soft); border-bottom: 1px solid var(--border);
+  font-size: .82rem; color: var(--text-muted);
+}
+.pdf-preview-bar select, .pdf-preview-bar input[type="text"] {
+  font-size: .82rem; padding: .2rem .4rem;
+}
+#pdf-frame { width: 100%; height: 480px; border: none; display: block; background: #1a1a1a; }
+
+.sub-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.sub-table th {
+  background: var(--bg-soft); border-bottom: 2px solid var(--border);
+  padding: .5rem .75rem; text-align: left;
+  font-size: .72rem; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-muted); white-space: nowrap;
+}
+.sub-table td {
+  border-bottom: 1px solid var(--border);
+  padding: .45rem .75rem; vertical-align: middle;
+}
+.sub-table tbody tr:last-child td { border-bottom: none; }
+
+.sub-row.aw-first  td { background: rgba(22,163,74,.06); }
+.sub-row.aw-second td { background: rgba(217,119,6,.06); }
+.sub-row.aw-third  td { background: rgba(147,51,234,.06); }
+.sub-row.aw-sorry  td { background: rgba(220,38,38,.06); }
+
+.pill-group { display: flex; gap: .2rem; flex-wrap: nowrap; }
+.pill {
+  padding: .22rem .55rem; font-size: .72rem; font-weight: 700; letter-spacing: .03em;
+  border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: var(--bg-soft); color: var(--text-muted);
+  cursor: pointer; white-space: nowrap;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.pill:hover { border-color: var(--text-muted); color: var(--text); }
+.pill.active-none   { background: var(--bg-softer); color: var(--text); border-color: var(--border); }
+.pill.active-first  { background: #16a34a; color: #fff; border-color: #16a34a; }
+.pill.active-second { background: #d97706; color: #fff; border-color: #d97706; }
+.pill.active-third  { background: #9333ea; color: #fff; border-color: #9333ea; }
+.pill.active-sorry  { background: #dc2626; color: #fff; border-color: #dc2626; }
+
+.name-cell-input {
+  width: 100%; min-width: 130px;
+  padding: .25rem .45rem; font-size: .82rem;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text);
+}
+.name-cell-input:disabled {
+  opacity: .3; cursor: not-allowed; background: var(--bg-soft);
+}
+
+.selection-strip {
+  display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+  padding: .55rem .75rem; background: var(--bg-softer);
+  border-radius: var(--radius-sm); border: 1px solid var(--border);
+  font-size: .82rem; color: var(--text-muted); margin-bottom: .75rem;
+}
+.sel-count { font-weight: 700; color: var(--text); }
+.sel-badge {
+  display: inline-flex; align-items: center; gap: .3rem;
+  padding: .15rem .45rem; border-radius: 999px;
+  font-size: .72rem; font-weight: 700;
+}
+.sel-first  { background: rgba(22,163,74,.15);  color:#16a34a; }
+.sel-second { background: rgba(217,119,6,.15);  color:#d97706; }
+.sel-third  { background: rgba(147,51,234,.15); color:#9333ea; }
+.sel-sorry  { background: rgba(220,38,38,.15);  color:#dc2626; }
+
+#sorry-block { display: none; }
+#sorry-block.visible { display: block; }
+
+.anon-id {
+  font-family: var(--font-mono); font-size: .75rem;
+  padding: .1rem .3rem; background: var(--bg-soft);
+  border-radius: var(--radius-sm); border: 1px solid var(--border);
+  color: var(--text-muted); white-space: nowrap;
+}
+
+.hist-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.hist-table th {
+  background: var(--bg-soft); border-bottom: 2px solid var(--border);
+  padding: .5rem .75rem; text-align: left;
+  font-size: .72rem; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-muted); white-space: nowrap;
+}
+.hist-table td { border-bottom: 1px solid var(--border); padding: .5rem .75rem; vertical-align: middle; }
+.hist-table tbody tr:last-child td { border-bottom: none; }
+.hist-table tbody tr:hover td { background: var(--bg-soft); }
+
+.award-badge {
+  display: inline-block; padding: .15rem .5rem;
+  border-radius: 999px; font-size: .72rem; font-weight: 700;
+  letter-spacing: .04em; text-transform: uppercase;
+}
+.ab-first  { background: #14532d; color: #4ade80; }
+.ab-second { background: #451a03; color: #fbbf24; }
+.ab-third  { background: #3b0764; color: #c084fc; }
+.ab-sorry  { background: #3b1f1f; color: #f87171; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section admin-page">
+  <div class="container admin-container" style="max-width:1280px;">
+    <div class="admin-layout">
+      {% include "admin/_sidebar.html" %}
+      <div class="admin-main">
+
+        <header class="section-head">
+          <h1>Certificates</h1>
+          <p class="lead">Send result emails with optional PDF certificates. Winners are always sent first.</p>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for cat, msg in messages %}
+            <div class="alert alert-{{ cat }}" style="margin-bottom:1rem;">{{ msg }}</div>
+          {% endfor %}
+        {% endwith %}
+
+        <form method="post" action="{{ url_for('admin.certificates_send') }}" id="cert-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <div class="card" style="margin-bottom:1.25rem;">
+            <h3 style="margin:0 0 1rem;font-size:1rem;font-weight:700;">Competition details</h3>
+            <div class="cert-config">
+              <div class="form-group">
+                <label class="form-label" for="competition_name">
+                  Competition name <span style="color:var(--danger);">*</span>
+                </label>
+                <input type="text" id="competition_name" name="competition_name"
+                       class="form-control" required maxlength="200"
+                       placeholder="e.g. Spring Promptathon 2026"
+                       value="{{ competition_name }}">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="school_name">
+                  School / organisation name <span style="color:var(--danger);">*</span>
+                </label>
+                <input type="text" id="school_name" name="school_name"
+                       class="form-control" required maxlength="200"
+                       placeholder="e.g. Oakwood Academy"
+                       value="{{ school_name }}">
+              </div>
+            </div>
+
+            <div style="margin-top:1rem;">
+              <label class="toggle-label">
+                <input type="checkbox" name="include_pdf" value="1" id="include-pdf-toggle" checked>
+                Include PDF certificate for 1st / 2nd / 3rd place
+              </label>
+              <div class="sub-toggle-wrap" id="sorry-pdf-wrap">
+                <label class="toggle-label">
+                  <input type="checkbox" name="include_sorry_pdf" value="1" id="include-sorry-pdf-toggle">
+                  Send participation PDF certificates (Sorry / participation recipients)
+                </label>
+              </div>
+            </div>
+
+            <div style="margin-top:1rem;">
+              <button type="button" class="btn btn-ghost btn-sm" id="preview-toggle-btn">
+                Preview PDF certificate &#9660;
+              </button>
+              <div class="pdf-preview-panel" id="pdf-preview-panel">
+                <div class="pdf-preview-bar">
+                  <span>Award:</span>
+                  <select id="preview-award-select">
+                    <option value="first">1st Place</option>
+                    <option value="second">2nd Place</option>
+                    <option value="third">3rd Place</option>
+                  </select>
+                  <span>Name:</span>
+                  <input type="text" id="preview-name-input" placeholder="Jane Smith" value="Jane Smith" style="width:140px;">
+                  <button type="button" class="btn btn-ghost btn-sm" id="preview-refresh-btn">Refresh</button>
+                  <a id="preview-open-link" href="#" target="_blank" class="btn btn-ghost btn-sm">Open in tab ↗</a>
+                </div>
+                <iframe id="pdf-frame" src="" title="Certificate preview"></iframe>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" id="sorry-block" style="margin-bottom:1.25rem;">
+            <h3 style="margin:0 0 .75rem;font-size:1rem;font-weight:700;">Custom participation message</h3>
+            <p class="muted small" style="margin:0 0 .75rem;">
+              Sent to all <em>Sorry</em> recipients. Leave blank to use the default message.
+            </p>
+            <textarea name="sorry_message" class="form-control" rows="5" maxlength="2000"
+                      placeholder="Dear participant, thank you for taking part…"></textarea>
+          </div>
+
+          <div class="card" style="margin-bottom:1.25rem;">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.75rem;">
+              <h3 style="margin:0;font-size:1rem;font-weight:700;">Submissions</h3>
+              <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+                <input type="search" id="recip-search" class="form-control"
+                       placeholder="Filter…" style="width:200px;">
+                <button type="button" class="btn btn-ghost btn-sm" id="clear-all-btn">Clear all</button>
+              </div>
+            </div>
+
+            <div class="selection-strip" id="selection-strip">
+              <span><span class="sel-count" id="sel-total">0</span> selected</span>
+              <span id="sel-badges"></span>
+              <span id="sel-empty" class="muted small">Select award types below to add recipients.</span>
+            </div>
+
+            {% if submissions %}
+            <div style="overflow-x:auto;max-height:560px;overflow-y:auto;">
+              <table class="sub-table" id="recipients-table">
+                <thead>
+                  <tr>
+                    <th style="width:70px;">ID</th>
+                    <th>Submitter</th>
+                    <th>Award</th>
+                    <th>Name on certificate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for sub, user in submissions %}
+                  <tr class="sub-row" id="row-{{ sub.anonymous_id }}"
+                      data-email="{{ user.email }}" data-title="{{ sub.title }}">
+                    <td><span class="anon-id">{{ sub.anonymous_id or '—' }}</span></td>
+                    <td>
+                      <span style="font-family:var(--font-mono);font-size:.8rem;">{{ user.email }}</span><br>
+                      <span class="muted small" style="font-size:.78rem;display:block;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                        {{ sub.title }}
+                      </span>
+                    </td>
+                    <td>
+
+                      <input type="hidden" name="award_{{ sub.anonymous_id }}" id="award-{{ sub.anonymous_id }}" value="">
+                      <div class="pill-group" data-anon="{{ sub.anonymous_id }}">
+                        <button type="button" class="pill active-none" data-val="">None</button>
+                        <button type="button" class="pill" data-val="first">1st</button>
+                        <button type="button" class="pill" data-val="second">2nd</button>
+                        <button type="button" class="pill" data-val="third">3rd</button>
+                        <button type="button" class="pill" data-val="sorry">Sorry</button>
+                      </div>
+                    </td>
+                    <td>
+                      <input type="text" name="name_{{ sub.anonymous_id }}"
+                             id="name-{{ sub.anonymous_id }}"
+                             class="name-cell-input"
+                             placeholder="{{ user.name or user.email.split('@')[0] }}"
+                             maxlength="200" disabled>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <p class="muted" style="margin:1rem 0;text-align:center;">No submissions found.</p>
+            {% endif %}
+          </div>
+
+          <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin-bottom:2rem;">
+            <button type="submit" class="btn btn-primary" id="send-btn" disabled>
+              Send result emails
+            </button>
+            <span id="send-note" class="muted small">Select at least one recipient to enable sending.</span>
+          </div>
+        </form>
+
+        {% if history %}
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem;">
+            <h3 style="margin:0;font-size:1rem;font-weight:700;">Send history</h3>
+            <form method="post" action="{{ url_for('admin.certificates_history_clear') }}" style="margin:0;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-danger btn-sm"
+                      onclick="return confirm('Clear all certificate history?')">Clear history</button>
+            </form>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="hist-table">
+              <thead>
+                <tr>
+                  <th>Recipient</th>
+                  <th>Name</th>
+                  <th>Competition</th>
+                  <th>Award</th>
+                  <th>PDF</th>
+                  <th>Sent</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for cert in history %}
+                <tr>
+                  <td style="font-family:var(--font-mono);font-size:.82rem;white-space:nowrap;">{{ cert.recipient_email }}</td>
+                  <td style="font-size:.85rem;">{{ cert.recipient_name or '—' }}</td>
+                  <td style="font-size:.82rem;">{{ cert.competition_name }}</td>
+                  <td><span class="award-badge ab-{{ cert.award_type }}">{{ cert.award_type }}</span></td>
+                  <td style="font-size:.82rem;">
+                    {% if cert.pdf_generated %}<span style="color:#4ade80;">Yes</span>
+                    {% else %}<span style="color:var(--text-muted);">No</span>{% endif %}
+                  </td>
+                  <td style="white-space:nowrap;font-size:.82rem;color:var(--text-muted);">
+                    {{ cert.sent_at.strftime('%d %b %Y %H:%M') if cert.sent_at else '—' }}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+(function () {
+
+  var includePdf   = document.getElementById('include-pdf-toggle');
+  var sorryPdfWrap = document.getElementById('sorry-pdf-wrap');
+  function syncPdfSub() {
+    sorryPdfWrap.classList.toggle('visible', includePdf.checked);
+  }
+  includePdf.addEventListener('change', syncPdfSub);
+  syncPdfSub();
+
+  var previewPanel  = document.getElementById('pdf-preview-panel');
+  var previewBtn    = document.getElementById('preview-toggle-btn');
+  var pdfFrame      = document.getElementById('pdf-frame');
+  var previewOpen   = document.getElementById('preview-open-link');
+  var awardSel      = document.getElementById('preview-award-select');
+  var nameInput     = document.getElementById('preview-name-input');
+  var refreshBtn    = document.getElementById('preview-refresh-btn');
+  var compInput     = document.getElementById('competition_name');
+  var schoolInput   = document.getElementById('school_name');
+  var panelVisible  = false;
+
+  function buildPreviewUrl() {
+    var base = {{ url_for('admin.certificates_preview_pdf') | tojson }};
+    return base + '?' + new URLSearchParams({
+      award_type: awardSel.value,
+      recipient_name: nameInput.value || 'Jane Smith',
+      competition_name: compInput.value || '',
+      school_name: schoolInput.value || '',
+    }).toString();
+  }
+  function loadPreview() {
+    var url = buildPreviewUrl();
+    pdfFrame.src = url;
+    previewOpen.href = url;
+  }
+  previewBtn.addEventListener('click', function () {
+    panelVisible = !panelVisible;
+    previewPanel.classList.toggle('visible', panelVisible);
+    previewBtn.innerHTML = 'Preview PDF certificate ' + (panelVisible ? '&#9650;' : '&#9660;');
+    if (panelVisible) loadPreview();
+    else pdfFrame.src = '';
+  });
+  refreshBtn.addEventListener('click', loadPreview);
+  awardSel.addEventListener('change', loadPreview);
+
+  var sorryBlock = document.getElementById('sorry-block');
+  var sendBtn    = document.getElementById('send-btn');
+  var sendNote   = document.getElementById('send-note');
+  var selTotal   = document.getElementById('sel-total');
+  var selBadges  = document.getElementById('sel-badges');
+  var selEmpty   = document.getElementById('sel-empty');
+
+  var pillColors = { first: 'active-first', second: 'active-second', third: 'active-third', sorry: 'active-sorry' };
+
+  function updateSummary() {
+    var counts = { first: 0, second: 0, third: 0, sorry: 0 };
+    var total = 0;
+    document.querySelectorAll('[id^="award-"]').forEach(function (inp) {
+      if (inp.value) { total++; counts[inp.value] = (counts[inp.value] || 0) + 1; }
+    });
+    selTotal.textContent = total;
+    selEmpty.style.display = total ? 'none' : '';
+    var labels = { first: '1st', second: '2nd', third: '3rd', sorry: 'Sorry' };
+    var cssClass = { first: 'sel-first', second: 'sel-second', third: 'sel-third', sorry: 'sel-sorry' };
+    var html = '';
+    ['first', 'second', 'third', 'sorry'].forEach(function (k) {
+      if (counts[k]) {
+        html += '<span class="sel-badge ' + cssClass[k] + '">' + counts[k] + '×' + labels[k] + '</span>';
+      }
+    });
+    selBadges.innerHTML = html;
+    sorryBlock.classList.toggle('visible', counts.sorry > 0);
+    sendBtn.disabled = total === 0;
+    var est = Math.max(1, Math.round(total * 30 / 60));
+    sendNote.textContent = total
+      ? 'Will send to ' + total + ' recipient(s). Estimated ~' + est + ' min.'
+      : 'Select at least one recipient to enable sending.';
+  }
+
+  document.querySelectorAll('.pill-group').forEach(function (group) {
+    var anon = group.dataset.anon;
+    var hidden = document.getElementById('award-' + anon);
+    var nameInp = document.getElementById('name-' + anon);
+    var row = document.getElementById('row-' + anon);
+
+    group.querySelectorAll('.pill').forEach(function (pill) {
+      pill.addEventListener('click', function () {
+        var val = pill.dataset.val;
+        hidden.value = val;
+
+        group.querySelectorAll('.pill').forEach(function (p) {
+          p.className = 'pill';
+        });
+
+        pill.classList.add(val ? pillColors[val] : 'active-none');
+
+        row.className = 'sub-row' + (val ? ' aw-' + val : '');
+
+        nameInp.disabled = !val;
+
+        updateSummary();
+      });
+    });
+  });
+  updateSummary();
+
+  document.getElementById('clear-all-btn').addEventListener('click', function () {
+    document.querySelectorAll('.pill-group').forEach(function (group) {
+      var anon = group.dataset.anon;
+      document.getElementById('award-' + anon).value = '';
+      document.getElementById('name-' + anon).disabled = true;
+      document.getElementById('row-' + anon).className = 'sub-row';
+      group.querySelectorAll('.pill').forEach(function (p) { p.className = 'pill'; });
+      group.querySelector('[data-val=""]').classList.add('active-none');
+    });
+    updateSummary();
+  });
+
+  document.querySelectorAll('.pill[data-val=""]').forEach(function (p) {
+    p.classList.add('active-none');
+  });
+
+  document.getElementById('recip-search').addEventListener('input', function () {
+    var q = this.value.toLowerCase();
+    document.querySelectorAll('#recipients-table tbody tr').forEach(function (row) {
+      var hay = (row.dataset.email + ' ' + row.dataset.title).toLowerCase();
+      row.style.display = (!q || hay.includes(q)) ? '' : 'none';
+    });
+  });
+})();
+</script>
+{% endblock %}

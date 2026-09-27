@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% set active_admin_tab = 'submissions' %}
+{% block title %}Submissions — Admin — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<section class="section admin-page">
+  <div class="container admin-container is-wide">
+    <div class="admin-layout">
+      {% include "admin/_sidebar.html" %}
+      <div class="admin-main">
+        <header class="section-head">
+          <h1>Submissions</h1>
+          <p class="lead">Review and score participant submissions.</p>
+        </header>
+
+        <form method="get" class="card filter-bar">
+          <div class="field">
+            <label>Status</label>
+            <details class="ms-dropdown" id="status-dropdown">
+              <summary>
+                <span class="ms-summary-text">Status</span>
+                <span class="ms-caret" aria-hidden="true">▾</span>
+              </summary>
+              <div class="ms-panel">
+                {% for k, v in filter_statuses.items() %}
+                  <label class="ms-option">
+                    <input type="checkbox" name="status" value="{{ k }}"
+                           {% if k in selected_statuses %}checked{% endif %}>
+                    <span>{{ v }}{% if k in default_hidden %} <span class="muted small">(hidden by default)</span>{% endif %}</span>
+                  </label>
+                {% endfor %}
+              </div>
+            </details>
+          </div>
+          <div class="field">
+            <label for="task_id">Task</label>
+            <select id="task_id" name="task_id">
+              <option value="">All tasks</option>
+              {% for t in tasks %}
+                <option value="{{ t.id }}" {% if task_id == t.id %}selected{% endif %}>{{ t.title }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="filter-actions">
+            <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+            <a class="btn btn-ghost btn-sm" href="{{ url_for('admin.submissions') }}">Reset</a>
+          </div>
+        </form>
+
+        <div class="card" style="padding:0; overflow:hidden;">
+          {% if submissions %}
+            <div style="overflow-x: auto;">
+              <table class="data-table" style="min-width: 900px; white-space: nowrap;">
+                <thead>
+                  <tr>
+                    <th style="min-width:50px;">#</th>
+                    <th style="min-width:100px;">Anon ID</th>
+                    <th style="min-width:180px; white-space:normal;">Title</th>
+                    {% if current_user.is_admin %}<th style="min-width:180px;">Participant</th>{% endif %}
+                    <th style="min-width:120px; white-space:normal;">Task</th>
+                    <th style="min-width:130px;">Submitted</th>
+                    <th style="min-width:100px;">Status</th>
+                    <th style="min-width:70px;">Score</th>
+                    <th style="min-width:80px;">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for s in submissions %}
+                    {% set u = users_map.get(s.user_id) %}
+                    {% set missing = missing_fields_fn(s) %}
+                    <tr>
+                      <td class="muted small">{{ s.id }}</td>
+                      <td><code style="font-size:0.82rem;">{{ s.anonymous_id or '—' }}</code></td>
+                      <td style="white-space:normal; max-width:220px;">
+                        <span style="display:inline-flex; align-items:center; gap:0.4rem;">
+                          {{ s.title }}
+                          {% if missing %}
+                            <span title="Unfilled: {{ missing|join(', ') }}"
+                                  style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--danger);flex-shrink:0;"
+                                  aria-label="Pending score"></span>
+                          {% endif %}
+                        </span>
+                      </td>
+                      {% if current_user.is_admin %}
+                      <td><code class="pii-email" style="font-size:0.8rem;">{% if u %}{{ u.email }}{% else %}—{% endif %}</code></td>
+                      {% endif %}
+                      <td style="white-space:normal; max-width:160px;">{{ task_titles.get(s.task_id, s.task_id) }}</td>
+                      <td>
+                        <time datetime="{{ s.submitted_at.isoformat() }}Z">{{ s.submitted_at.strftime('%Y-%m-%d %H:%M') }}</time>
+                      </td>
+                      <td><span class="badge badge-{{ s.status }}">{{ s.status_label }}</span></td>
+                      <td>{% if s.total_score is not none %}{{ s.total_score }}/60{% else %}—{% endif %}</td>
+                      <td>
+                        {% if s.status == 'processing' and current_user.is_admin %}
+                          <form method="post"
+                                action="{{ url_for('admin.terminate_submission', anon_id=s.anonymous_id) }}"
+                                style="display:inline;"
+                                onsubmit="return confirm('Terminate this processing job?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-danger btn-sm">Terminate</button>
+                          </form>
+                        {% elif s.status not in ('processing', 'failed') %}
+                          <a class="btn btn-primary btn-sm" href="{{ url_for('admin.review', anon_id=s.anonymous_id) }}">Review</a>
+                        {% else %}
+                          <span class="muted small">—</span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <p class="muted small" style="padding:0.5rem 1rem; border-top:1px solid var(--border);">
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--danger);vertical-align:middle;margin-right:0.3rem;"></span>
+              Red dot = a judge-assigned score field is still empty.
+            </p>
+          {% else %}
+            <p class="muted" style="padding:1rem;">No submissions match your filter.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script nonce="{{ csp_nonce }}">
+(function(){
+  var dd = document.getElementById('status-dropdown');
+  if (!dd) return;
+  var label = dd.querySelector('.ms-summary-text');
+  var boxes = dd.querySelectorAll('input[name="status"]');
+  function sync(){
+    var n = 0;
+    boxes.forEach(function(b){ if (b.checked) n++; });
+    if (n === 0) label.textContent = 'No statuses';
+    else if (n === boxes.length) label.textContent = 'All statuses';
+    else label.textContent = n + ' selected';
+  }
+  boxes.forEach(function(b){ b.addEventListener('change', sync); });
+  sync();
+
+  document.addEventListener('click', function(e){
+    if (dd.open && !dd.contains(e.target)) dd.removeAttribute('open');
+  });
+})();
+</script>
+{% endblock %}

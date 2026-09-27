@@ -1,0 +1,685 @@
+{% extends "base.html" %}
+{% set active_dashboard_tab = 'submit' %}
+{% block title %}Submit work &middot; {{ APP_NAME }}{% endblock %}
+
+{% block head_extra %}
+<style>
+
+#preview-panel {
+  display: none;
+  margin-top: 1.5rem;
+}
+.preview-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+.preview-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.preview-card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.55rem 0.85rem;
+  background: var(--bg-soft); border-bottom: 1px solid var(--border);
+  font-size: 0.82rem; color: var(--text-muted);
+}
+.preview-card-header strong { color: var(--text); font-size: 0.88rem; }
+.preview-iframe { display: block; width: 100%; height: 520px; border: none; background: var(--bg-soft); }
+.preview-spinner {
+  display: flex; align-items: center; justify-content: center;
+  height: 520px; color: var(--text-muted); font-size: 0.88rem;
+}
+.preview-confirm-bar {
+  display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+  padding: 0.85rem 1rem;
+  background: var(--bg-soft); border-top: 1px solid var(--border);
+}
+
+#upload-progress { display: none; margin-top: 1rem; }
+#upload-bar-track {
+  background: var(--border); border-radius: 999px; height: 8px; overflow: hidden;
+}
+#upload-bar {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--primary) 80%, black), color-mix(in srgb, var(--primary) 80%, white));
+  height: 100%; width: 0%;
+  transition: width 0.3s ease; border-radius: 999px;
+}
+
+.file-slot-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; }
+.file-slot-badge {
+  font-size: 0.72rem; font-weight: 700; color: var(--text-muted);
+  min-width: 4ch; flex-shrink: 0;
+}
+.file-slot-row .docx-warning {
+  font-size: 0.75rem; color: var(--warning); margin-left: 0.25rem; display: none;
+}
+
+.file-input-wrap { position: relative; display: inline-flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 0; }
+.file-input-wrap input[type="file"] { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; z-index: 2; margin: 0; }
+.file-choose-btn {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.3rem 0.8rem; font-size: 0.82rem; font-weight: 500;
+  border: 1.5px solid var(--border); border-radius: var(--radius);
+  background: var(--bg-soft); color: var(--text);
+  white-space: nowrap; pointer-events: none; flex-shrink: 0;
+}
+.file-name-lbl { font-size: 0.82rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+#drop-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(29,78,216,0.10); backdrop-filter: blur(3px);
+  display: none; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+#drop-overlay.active { display: flex; }
+.drop-overlay-box {
+  background: var(--bg, #fff); border: 3px dashed var(--primary, #1d4ed8);
+  border-radius: 16px; padding: 3rem 4.5rem; text-align: center;
+}
+.drop-overlay-box svg { display: block; margin: 0 auto 1rem; color: var(--primary,#1d4ed8); }
+.drop-overlay-box p { font-size: 1.2rem; font-weight: 600; color: var(--primary,#1d4ed8); margin: 0 0 0.35rem; }
+.drop-overlay-box small { color: var(--text-muted); font-size: 0.85rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container narrow">
+    {% include "dashboard/_nav.html" %}
+
+    <header class="section-head">
+      <h1>{{ PAGE_CONTENT.submit_title }}</h1>
+      <p class="lead">{{ PAGE_CONTENT.submit_subtitle }}</p>
+    </header>
+
+    <div class="alert alert-warning">
+      <p style="margin:0;">
+        <strong>Note:</strong> Entries are not editable after submission.
+        Please review your work carefully before submitting.
+      </p>
+    </div>
+
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in msgs %}
+      <div class="alert alert-{{ cat }}" style="margin-bottom:1rem;">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    {% set preselect = request.args.get('task_id') or selected_task_id %}
+
+    <form method="post" enctype="multipart/form-data" class="card form-card" novalidate
+          id="submit-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="field">
+        <label for="task_id">Task <span class="req">*</span></label>
+        <select id="task_id" name="task_id" required class="js-task-select">
+          {% for t in tasks %}
+            <option value="{{ t.id }}"
+              {% if preselect == t.id %}selected{% endif %}
+              data-description="{{ t.description }}"
+              data-format="{{ t.format or '' }}"
+              data-max-words="{{ t.max_words or '' }}">
+              {{ t.title }}{% if t.difficulty %} ({{ t.difficulty }}){% endif %}
+            </option>
+          {% endfor %}
+        </select>
+        <small class="muted">Pick which task brief your work addresses.</small>
+      </div>
+
+      <article class="card task-brief" id="task-brief-preview" style="display:none;">
+        <h3 class="h4" id="brief-title" style="margin-top:0;"></h3>
+        <p id="brief-description"></p>
+        <p class="muted small" id="brief-meta"></p>
+      </article>
+
+      <div class="field">
+        <label for="title">Title <span class="req">*</span></label>
+        <input id="title" name="title" type="text" maxlength="200" required
+               autocomplete="off" value="{{ request.form.title or '' }}">
+        <small class="muted">A short heading describing your submission.</small>
+      </div>
+
+      <div class="field">
+        <label for="content">Written content</label>
+        <textarea id="content" name="content" rows="14" maxlength="50000"
+                  placeholder="Paste or write your response here&hellip;">{{ request.form.content or '' }}</textarea>
+        <small class="muted">Up to 50,000 characters. HTML tags will be removed.</small>
+      </div>
+
+      {% if ACCEPTED_FILES != 'none' %}
+      <div class="field" id="file-field">
+        <label for="file1">Attach files
+          <span class="muted small">
+            (optional &mdash;
+            {% if ACCEPTED_FILES == 'pdf_docx' %}PDF or DOCX{% else %}PDF only{% endif %},
+            up to 3)
+          </span>
+        </label>
+
+        <div id="file-slots">
+          {% for n in [1, 2, 3] %}
+          <div class="file-slot-row" id="slot-row-{{ n }}"
+               {% if n > 1 %}style="display:none;"{% endif %}>
+            <span class="file-slot-badge">File {{ n }}</span>
+            <div class="file-input-wrap">
+              <input id="file{{ n }}" name="file{{ n }}" type="file"
+                     accept="{% if ACCEPTED_FILES == 'pdf_docx' %}.pdf,.docx{% else %}.pdf{% endif %}"
+                     aria-label="File {{ n }}">
+              <span class="file-choose-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Choose file
+              </span>
+              <span class="file-name-lbl" id="file-label-{{ n }}">No file chosen</span>
+            </div>
+            {% if n > 1 %}
+            <button type="button" class="btn btn-ghost btn-sm remove-slot-btn"
+                    data-slot="{{ n }}" style="flex-shrink:0;">Remove</button>
+            {% endif %}
+            <span class="docx-warning" id="docx-warn-{{ n }}">
+              DOCX will be converted &mdash; preview below before submitting.
+            </span>
+          </div>
+          {% endfor %}
+        </div>
+
+        <button type="button" id="add-file-btn" class="btn btn-ghost btn-sm"
+                style="margin-top:0.4rem;">
+          + Add another file
+        </button>
+
+        <small class="muted" style="display:block; margin-top:0.4rem;">
+          {% if ACCEPTED_FILES == 'pdf_docx' %}
+            PDF and DOCX only. DOCX files are converted to PDF on upload.
+          {% else %}
+            PDF only.
+          {% endif %}
+          Max {{ (config.MAX_CONTENT_LENGTH // (1024*1024)) }} MB per file.
+        </small>
+      </div>
+
+      {% if ACCEPTED_FILES == 'pdf_docx' %}
+      <div id="preview-panel">
+        <h3 class="h4" style="margin-bottom:0.75rem;">File preview</h3>
+        <p class="muted small" id="preview-intro" style="margin-bottom:1rem;">
+          DOCX files have been converted to PDF below. Check they look correct before submitting.
+        </p>
+        <div class="preview-cols" id="preview-cols"></div>
+        <div class="preview-confirm-bar" id="preview-confirm-bar">
+          <span id="preview-question" class="muted small" style="flex:1;">
+            Do all files look correct?
+          </span>
+          <button type="button" class="btn btn-primary" id="preview-yes-btn">
+            Yes, submit
+          </button>
+          <button type="button" class="btn btn-ghost" id="preview-no-btn">
+            No, go back
+          </button>
+        </div>
+      </div>
+      {% endif %}
+      {% endif %}
+
+      <div id="upload-progress">
+        <p class="muted small" style="margin-bottom:0.4rem;" id="upload-status-text">
+          Uploading and processing&hellip;
+        </p>
+        <div id="upload-bar-track">
+          <div id="upload-bar"></div>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">Submit work</button>
+        <a class="btn btn-ghost" href="{{ url_for('participant.tasks') }}" id="cancel-btn">Cancel</a>
+      </div>
+
+    </form>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var ACCEPTED = "{{ ACCEPTED_FILES }}";
+  var PREVIEW_ENABLED = (ACCEPTED === 'pdf_docx');
+  var CSRF = document.querySelector('[name="csrf_token"]').value;
+
+  var FORM_KEY = 'submit_form_draft_v1';
+
+  function saveFormState() {
+    try {
+      var state = {
+        task_id: document.getElementById('task_id') ? document.getElementById('task_id').value : '',
+        title:   document.getElementById('title')   ? document.getElementById('title').value   : '',
+        content: document.getElementById('content') ? document.getElementById('content').value : '',
+        ts: Date.now(),
+      };
+      localStorage.setItem(FORM_KEY, JSON.stringify(state));
+    } catch(e) {}
+  }
+
+  function restoreFormState() {
+    try {
+      var raw = localStorage.getItem(FORM_KEY);
+      if (!raw) return;
+      var state = JSON.parse(raw);
+      if (!state.ts || (Date.now() - state.ts) > 86400000) return;
+
+      var taskSel = document.getElementById('task_id');
+      var titleEl = document.getElementById('title');
+      var contentEl = document.getElementById('content');
+
+      if (taskSel && state.task_id) {
+        for (var i = 0; i < taskSel.options.length; i++) {
+          if (taskSel.options[i].value === state.task_id) {
+            taskSel.selectedIndex = i;
+            taskSel.dispatchEvent(new Event('change'));
+            break;
+          }
+        }
+      }
+      if (titleEl   && state.title)   titleEl.value   = state.title;
+      if (contentEl && state.content) contentEl.value = state.content;
+    } catch(e) {}
+  }
+
+  function clearFormState() {
+    try { localStorage.removeItem(FORM_KEY); } catch(e) {}
+  }
+
+  restoreFormState();
+
+  ['task_id','title','content'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('input', saveFormState);
+    if (el) el.addEventListener('change', saveFormState);
+  });
+
+  var sel       = document.querySelector(".js-task-select");
+  var briefDesc = document.getElementById("brief-description");
+  var briefMeta = document.getElementById("brief-meta");
+  if (sel && briefDesc) {
+    var briefCard  = document.getElementById("task-brief-preview");
+    var briefTitle = document.getElementById("brief-title");
+    function updateBrief() {
+      var opt = sel.options[sel.selectedIndex];
+      if (!opt) return;
+      var desc = opt.getAttribute("data-description") || "";
+      if (briefCard)  briefCard.style.display = desc ? "" : "none";
+      if (briefTitle) briefTitle.textContent = opt.textContent.trim();
+      briefDesc.textContent = desc;
+      var meta = [];
+      var fmt = opt.getAttribute("data-format");
+      var mw  = opt.getAttribute("data-max-words");
+      if (fmt) meta.push("Format: " + fmt);
+      if (mw)  meta.push("Max " + mw + " words");
+      briefMeta.textContent = meta.join("  ·  ");
+    }
+    sel.addEventListener("change", updateBrief);
+    updateBrief();
+  }
+
+  var addBtn  = document.getElementById("add-file-btn");
+  var slots   = document.getElementById("file-slots");
+  var visible = 1;
+  var MAX_SLOTS = 3;
+
+  function updateAddBtn() {
+    if (addBtn) addBtn.style.display = (visible < MAX_SLOTS) ? "" : "none";
+  }
+  updateAddBtn();
+
+  if (addBtn) {
+    addBtn.addEventListener("click", function() {
+      if (visible >= MAX_SLOTS) return;
+      visible++;
+      var row = document.getElementById("slot-row-" + visible);
+      if (row) row.style.display = "";
+      updateAddBtn();
+    });
+  }
+
+  document.querySelectorAll(".remove-slot-btn").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      var n = parseInt(btn.dataset.slot, 10);
+      var row = document.getElementById("slot-row-" + n);
+      var inp = document.getElementById("file" + n);
+      if (inp) inp.value = "";
+      if (row) row.style.display = "none";
+      while (visible > 1 && (function() {
+        var r = document.getElementById("slot-row-" + visible);
+        return r && r.style.display === "none";
+      })()) {
+        visible--;
+      }
+      updateAddBtn();
+    });
+  });
+
+  function updateDocxWarnings() {
+    for (var i = 1; i <= MAX_SLOTS; i++) {
+      var inp = document.getElementById("file" + i);
+      var warn = document.getElementById("docx-warn-" + i);
+      if (inp && warn) {
+        var name = inp.value || "";
+        warn.style.display = name.toLowerCase().endsWith(".docx") ? "inline" : "none";
+      }
+    }
+  }
+
+  var previewPanel   = document.getElementById("preview-panel");
+  var previewCols    = document.getElementById("preview-cols");
+  var previewYesBtn  = document.getElementById("preview-yes-btn");
+  var previewNoBtn   = document.getElementById("preview-no-btn");
+  var submitBtn      = document.getElementById("submit-btn");
+  var uploadProgress = document.getElementById("upload-progress");
+  var uploadBar      = document.getElementById("upload-bar");
+  var statusText     = document.getElementById("upload-status-text");
+  var form           = document.getElementById("submit-form");
+
+  var pendingDocxFiles = [];
+  var previewOkToSubmit = false;
+
+  function hasDocx() {
+    for (var i = 1; i <= MAX_SLOTS; i++) {
+      var inp = document.getElementById("file" + i);
+      if (inp && inp.files && inp.files[0] &&
+          inp.files[0].name.toLowerCase().endsWith(".docx")) return true;
+    }
+    return false;
+  }
+
+  function hasAnyFile() {
+    for (var i = 1; i <= MAX_SLOTS; i++) {
+      var inp = document.getElementById("file" + i);
+      if (inp && inp.files && inp.files[0]) return true;
+    }
+    return false;
+  }
+
+  function showProgress(phase1Text) {
+    uploadProgress.style.display = "block";
+    uploadBar.style.width = "0%";
+    statusText.textContent = phase1Text || "Processing…";
+  }
+
+  function animateBar(from, to, stepMs, stepPct, cb) {
+    var pct = from;
+    var t = setInterval(function() {
+      pct = Math.min(pct + stepPct, to);
+      uploadBar.style.width = pct + "%";
+      if (pct >= to) { clearInterval(t); if (cb) cb(); }
+    }, stepMs);
+    return t;
+  }
+
+  function buildPdfPreviewCard(label, b64) {
+    var card = document.createElement("div");
+    card.className = "preview-card";
+
+    var header = document.createElement("div");
+    header.className = "preview-card-header";
+    header.innerHTML = "<strong>" + label + "</strong><span>Converted PDF</span>";
+    card.appendChild(header);
+
+    var iframe = document.createElement("iframe");
+    iframe.className = "preview-iframe";
+    iframe.referrerPolicy = "no-referrer";
+    iframe.title = "PDF preview for " + label;
+    iframe.src = "about:blank";
+    setTimeout(function() { iframe.src = "data:application/pdf;base64," + b64 + "#toolbar=0&navpanes=0&scrollbar=0"; }, 0);
+    card.appendChild(iframe);
+    return card;
+  }
+
+  function buildPassthroughCard(label, file) {
+    var card = document.createElement("div");
+    card.className = "preview-card";
+    var header = document.createElement("div");
+    header.className = "preview-card-header";
+    header.innerHTML = "<strong>" + label + "</strong><span>PDF &mdash; ready to submit</span>";
+    card.appendChild(header);
+    var body = document.createElement("div");
+    body.className = "preview-spinner";
+    body.style.height = "80px";
+    body.textContent = "PDF will be submitted as-is.";
+    card.appendChild(body);
+    return card;
+  }
+
+  async function runPreview() {
+    submitBtn.disabled = true;
+    uploadProgress.style.display = "block";
+    uploadBar.style.width = "10%";
+    statusText.textContent = "Converting DOCX files for preview…";
+
+    if (previewCols) previewCols.innerHTML = "";
+    var errors = [];
+    var cards  = [];
+
+    for (var i = 1; i <= MAX_SLOTS; i++) {
+      var inp = document.getElementById("file" + i);
+      if (!inp || !inp.files || !inp.files[0]) continue;
+      var file = inp.files[0];
+      var label = "File " + i;
+
+      if (file.name.toLowerCase().endsWith(".docx")) {
+        var fd = new FormData();
+        fd.append("csrf_token", CSRF);
+        fd.append("file", file);
+        try {
+          var resp = await fetch("{{ url_for('participant.convert_preview') }}", {
+            method: "POST", body: fd,
+            headers: {"Accept": "application/json"},
+          });
+          var data = await resp.json();
+          if (data.ok) {
+            cards.push({label: label, b64: data.pdf_b64});
+          } else {
+            errors.push(label + ": " + data.error);
+            cards.push({label: label, error: data.error});
+          }
+        } catch(e) {
+          errors.push(label + ": Network error during conversion.");
+          cards.push({label: label, error: "Network error."});
+        }
+      } else {
+        cards.push({label: label, pdf: false, file: file});
+      }
+    }
+
+    uploadBar.style.width = "80%";
+
+    if (previewCols) {
+      cards.forEach(function(c) {
+        var card;
+        if (c.b64) {
+          card = buildPdfPreviewCard(c.label, c.b64);
+        } else if (c.error) {
+          card = document.createElement("div");
+          card.className = "preview-card";
+          var h = document.createElement("div");
+          h.className = "preview-card-header";
+          h.innerHTML = "<strong>" + c.label + "</strong><span style='color:var(--danger);'>Conversion failed</span>";
+          card.appendChild(h);
+          var body = document.createElement("div");
+          body.className = "preview-spinner";
+          body.style.flexDirection = "column"; body.style.gap = "0.5rem";
+          body.innerHTML = "<p style='color:var(--danger);margin:0;'>Could not convert this file.</p>" +
+            "<p class='muted small' style='margin:0;'>Please export it as PDF from Word and upload the PDF instead.</p>";
+          card.appendChild(body);
+        } else {
+          card = buildPassthroughCard(c.label, c.file);
+        }
+        previewCols.appendChild(card);
+      });
+    }
+
+    uploadBar.style.width = "100%";
+    uploadProgress.style.display = "none";
+    if (previewPanel) previewPanel.style.display = "block";
+
+    if (previewPanel) previewPanel.scrollIntoView({behavior: "smooth", block: "start"});
+
+    if (errors.length > 0) {
+      var q = document.getElementById("preview-question");
+      if (q) q.innerHTML =
+        '<span style="color:var(--danger);">Some files could not be converted. ' +
+        'Please export them as PDF and upload those instead, or remove them.</span>';
+      if (previewYesBtn) previewYesBtn.style.display = "none";
+    } else {
+      submitBtn.disabled = false;
+    }
+  }
+
+  function showError(msg) {
+    console.error("[submit] error:", msg);
+    uploadProgress.style.display = "none";
+    submitBtn.disabled = false;
+    if (previewYesBtn) {
+      previewYesBtn.disabled = false;
+      previewYesBtn.textContent = "Yes, submit";
+    }
+    var existing = form.querySelector(".submit-ajax-error");
+    if (existing) existing.remove();
+    var div = document.createElement("div");
+    div.className = "alert alert-error submit-ajax-error";
+    div.style.marginBottom = "1rem";
+    div.textContent = msg;
+    form.insertBefore(div, form.firstChild);
+  }
+
+  function doAjaxSubmit() {
+    var existing = form.querySelector(".submit-ajax-error");
+    if (existing) existing.remove();
+    submitBtn.disabled = true;
+    showProgress("Uploading…");
+    animateBar(0, 30, 80, 2, function() {
+      statusText.textContent = "Converting and sanitising…";
+      animateBar(30, 85, 600, 0.5, null);
+    });
+    var fd = new FormData(form);
+    fetch(form.action || window.location.href, {
+      method: "POST",
+      body: fd,
+      headers: { "Accept": "application/json" },
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.ok) {
+          showError(data.error || "Submission failed. Please try again.");
+          return;
+        }
+        clearFormState();
+        statusText.textContent = "Redirecting…";
+        uploadBar.style.width = "100%";
+        window.location.href = data.redirect;
+      })
+      .catch(function() {
+        showError("Network error. Please check your connection and try again.");
+      });
+  }
+
+  if (form) {
+    form.addEventListener("submit", function(e) {
+      e.preventDefault();
+      if (!PREVIEW_ENABLED || !hasDocx() || previewOkToSubmit || !hasAnyFile()) {
+        doAjaxSubmit();
+        return;
+      }
+
+      runPreview();
+    });
+  }
+
+  if (previewYesBtn) {
+    previewYesBtn.addEventListener("click", function() {
+      previewOkToSubmit = true;
+      if (previewPanel) previewPanel.style.display = "none";
+      doAjaxSubmit();
+    });
+  }
+  if (previewNoBtn) {
+    previewNoBtn.addEventListener("click", function() {
+      if (previewPanel) previewPanel.style.display = "none";
+      submitBtn.disabled = false;
+      uploadProgress.style.display = "none";
+      var ff = document.getElementById("file-field");
+      if (ff) ff.scrollIntoView({behavior: "smooth", block: "start"});
+    });
+  }
+
+  function updateFileLabel(n) {
+    var inp = document.getElementById("file" + n);
+    var lbl = document.getElementById("file-label-" + n);
+    if (!lbl) return;
+    lbl.textContent = (inp && inp.files && inp.files.length) ? inp.files[0].name : "No file chosen";
+    lbl.title = lbl.textContent;
+  }
+  for (var fi = 1; fi <= MAX_SLOTS; fi++) {
+    (function(n) {
+      var inp = document.getElementById("file" + n);
+      if (inp) inp.addEventListener("change", function() { updateFileLabel(n); updateDocxWarnings(); });
+    })(fi);
+  }
+
+  var overlay   = document.getElementById("drop-overlay");
+  var dragDepth = 0;
+  document.addEventListener("dragenter", function(e) {
+    e.preventDefault();
+    var ff = document.getElementById("file-field");
+    if (!ff || ff.offsetParent === null) return;
+    dragDepth++;
+    if (dragDepth === 1 && overlay) overlay.classList.add("active");
+  });
+  document.addEventListener("dragleave", function() {
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (dragDepth === 0 && overlay) overlay.classList.remove("active");
+  });
+  document.addEventListener("dragover", function(e) { e.preventDefault(); });
+  document.addEventListener("drop", function(e) {
+    e.preventDefault();
+    dragDepth = 0;
+    if (overlay) overlay.classList.remove("active");
+    var ff = document.getElementById("file-field");
+    if (!ff || ff.offsetParent === null) return;
+    var dropped = Array.from(e.dataTransfer.files);
+    if (!dropped.length) return;
+    for (var d = 0; d < dropped.length && d < MAX_SLOTS; d++) {
+
+      var placed = false;
+      for (var s = 1; s <= visible; s++) {
+        var si = document.getElementById("file" + s);
+        if (si && (!si.files || !si.files.length)) {
+          var dt = new DataTransfer(); dt.items.add(dropped[d]); si.files = dt.files;
+          updateFileLabel(s); placed = true; break;
+        }
+      }
+      if (!placed && visible < MAX_SLOTS) {
+        visible++;
+        var nr = document.getElementById("slot-row-" + visible);
+        if (nr) { nr.style.display = ""; }
+        var ni = document.getElementById("file" + visible);
+        if (ni) { var dt2 = new DataTransfer(); dt2.items.add(dropped[d]); ni.files = dt2.files; updateFileLabel(visible); }
+        updateAddBtn();
+      }
+    }
+    updateDocxWarnings();
+  });
+
+})();
+</script>
+
+<div id="drop-overlay" aria-hidden="true">
+  <div class="drop-overlay-box">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    <p>Drop files here to upload</p>
+    <small>{% if ACCEPTED_FILES == 'pdf_docx' %}PDF or DOCX{% else %}PDF only{% endif %} &middot; up to 3 files</small>
+  </div>
+</div>
+{% endblock %}

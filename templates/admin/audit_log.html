@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% set active_admin_tab = 'index' %}
+{% block title %}Audit log — Admin — {{ APP_NAME }}{% endblock %}
+
+{% block head_extra %}
+<style>
+.audit-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.audit-table th {
+  background: var(--bg-soft);
+  border-bottom: 2px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-size: 0.72rem; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-muted); white-space: nowrap;
+}
+.audit-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  vertical-align: top;
+}
+.audit-table tbody tr:last-child td { border-bottom: none; }
+.audit-table tbody tr:hover td { background: var(--bg-soft); }
+.audit-table .col-when  { white-space: nowrap; width: 10rem; }
+.audit-table .col-actor { max-width: 14rem; word-break: break-all; }
+.audit-table .col-action{ white-space: nowrap; }
+.audit-table .col-target{ white-space: nowrap; }
+.audit-table .col-ip    { white-space: nowrap; width: 8rem; }
+.audit-table .col-detail{ word-break: break-word; max-width: 28rem; }
+
+.search-bar {
+  display: flex; gap: 0.5rem; align-items: center;
+  margin-bottom: 1rem; flex-wrap: wrap;
+}
+.search-bar input[type="search"] {
+  flex: 1; min-width: 200px;
+}
+.pagination-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: var(--bg-soft); border-top: 1px solid var(--border);
+  font-size: 0.85rem; color: var(--text-muted);
+  flex-wrap: wrap; gap: 0.5rem;
+}
+.page-links { display: flex; gap: 0.35rem; }
+.page-link {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 2rem; height: 2rem; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); font-size: 0.85rem;
+  text-decoration: none; color: var(--text);
+  transition: background var(--t-fast);
+}
+.page-link:hover { background: var(--bg-softer); }
+.page-link.is-active {
+  background: var(--primary); color: #fff; border-color: var(--primary);
+}
+.page-link[aria-disabled="true"] { opacity: 0.4; pointer-events: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section admin-page">
+  <div class="container admin-container" style="max-width:1280px;">
+    <div class="admin-layout">
+      {% include "admin/_sidebar.html" %}
+      <div class="admin-main">
+
+        <header class="section-head">
+          <h1>Audit log</h1>
+          <p><a href="{{ url_for('admin.index') }}" class="btn btn-ghost btn-sm">← Overview</a></p>
+        </header>
+
+        <form method="get" class="search-bar">
+          <input type="search" name="q" value="{{ q }}"
+                 placeholder="Search action, actor, detail, IP&hellip;"
+                 aria-label="Search audit log" autocomplete="off">
+          <button type="submit" class="btn btn-primary btn-sm">Search</button>
+          {% if q %}
+          <a href="{{ url_for('admin.audit_log') }}" class="btn btn-ghost btn-sm">Clear</a>
+          {% endif %}
+        </form>
+
+        <div class="card" style="padding:0; overflow:hidden;">
+          {% if entries %}
+          <div style="overflow-x:auto;">
+            <table class="audit-table">
+              <thead>
+                <tr>
+                  <th class="col-when">When</th>
+                  <th class="col-actor">Actor</th>
+                  <th class="col-action">Action</th>
+                  <th class="col-target">Target</th>
+                  <th class="col-ip">IP</th>
+                  <th class="col-detail">Detail</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for a in entries %}
+                <tr>
+                  <td class="col-when">
+                    <time datetime="{{ a.created_at.isoformat() }}Z"
+                          title="{{ a.created_at.strftime('%Y-%m-%d %H:%M:%S') }} UTC">
+                      {{ a.created_at.strftime('%Y-%m-%d') }}<br>
+                      <span class="muted small">{{ a.created_at.strftime('%H:%M:%S') }} UTC</span>
+                    </time>
+                  </td>
+                  <td class="col-actor">
+                    {% if a.actor_email %}
+                      <span class="pii-email">{{ a.actor_email }}</span>
+                      {% if a.actor_id %}
+                        <span class="muted small">(#{{ a.actor_id }})</span>
+                      {% endif %}
+                    {% else %}
+                      <span class="muted">—</span>
+                    {% endif %}
+                  </td>
+                  <td class="col-action"><code>{{ a.action }}</code></td>
+                  <td class="col-target">
+                    {% if a.target_type %}
+                      {{ a.target_type }}{% if a.target_id %}&#x202F;<code>#{{ a.target_id }}</code>{% endif %}
+                    {% else %}
+                      <span class="muted">—</span>
+                    {% endif %}
+                  </td>
+                  <td class="col-ip"><code class="pii-ip">{{ a.ip_address or '—' }}</code></td>
+                  <td class="col-detail">{{ a.detail or '' }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination-bar">
+            <span>
+              Showing {{ ((pagination.page - 1) * pagination.per_page) + 1 }}–{{ [pagination.page * pagination.per_page, pagination.total] | min }}
+              of {{ pagination.total }} entries
+              {% if q %}matching <strong>{{ q }}</strong>{% endif %}
+            </span>
+            <div class="page-links">
+              <a class="page-link" href="{{ url_for('admin.audit_log', q=q, page=pagination.prev_num) }}"
+                 {% if not pagination.has_prev %}aria-disabled="true"{% endif %}>&#8249;</a>
+              {% for p in pagination.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=1) %}
+                {% if p %}
+                  <a class="page-link {% if p == pagination.page %}is-active{% endif %}"
+                     href="{{ url_for('admin.audit_log', q=q, page=p) }}">{{ p }}</a>
+                {% else %}
+                  <span class="page-link" style="pointer-events:none;">…</span>
+                {% endif %}
+              {% endfor %}
+              <a class="page-link" href="{{ url_for('admin.audit_log', q=q, page=pagination.next_num) }}"
+                 {% if not pagination.has_next %}aria-disabled="true"{% endif %}>&#8250;</a>
+            </div>
+          </div>
+
+          {% else %}
+          <div style="padding:2rem; text-align:center;">
+            <p class="muted">
+              {% if q %}No entries matching &ldquo;{{ q }}&rdquo;.{% else %}No audit log entries yet.{% endif %}
+            </p>
+          </div>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

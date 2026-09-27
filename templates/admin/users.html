@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% set active_admin_tab = 'users' %}
+{% block title %}Users — Admin — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<section class="section admin-page">
+  <div class="container admin-container" style="max-width: 1400px;">
+    <div class="admin-layout">
+      {% include "admin/_sidebar.html" %}
+      <div class="admin-main" style="min-width: 0; overflow-x: auto;">
+        <header class="section-head">
+          <h1>Users</h1>
+          <p class="lead">Search, filter, ban, assign roles, and configure judge scoring access.</p>
+        </header>
+
+        <form method="get" class="card filter-form">
+          <div class="field">
+            <label for="q">Search</label>
+            <input id="q" type="text" name="q" value="{{ q }}" placeholder="email or name" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="role">Role</label>
+            <select id="role" name="role">
+              <option value="">All roles</option>
+              {% for r in valid_roles %}
+                <option value="{{ r }}" {% if role == r %}selected{% endif %}>{{ r|capitalize }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+            <a class="btn btn-ghost btn-sm" href="{{ url_for('admin.users') }}">Reset</a>
+          </div>
+        </form>
+
+        <div class="card" style="padding: 0; overflow-x: auto;">
+          {% if users %}
+            <table class="data-table" style="min-width: 1100px; width: 100%;">
+              <thead>
+                <tr>
+                  <th style="min-width:200px;">Email</th>
+                  <th style="min-width:120px;">Name</th>
+                  <th style="min-width:140px;">Role</th>
+                  <th style="min-width:80px;">Auth</th>
+                  <th style="min-width:70px;">Status</th>
+                  <th style="min-width:100px;">Created</th>
+                  <th style="min-width:100px;">Last login</th>
+                  <th style="min-width:220px;">Ban action</th>
+                  <th style="min-width:220px;">Judge score access</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for u in users %}
+                  <tr>
+                    <td><code class="pii-email" style="font-size:0.8rem; word-break: break-all;">{{ u.email }}</code></td>
+                    <td>{{ u.name or '—' }}</td>
+                    <td>
+                      <form method="post" action="{{ url_for('admin.set_role', user_id=u.id) }}" class="inline-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <select name="role" class="js-role-select" {% if u.id == current_user.id %}disabled{% endif %}>
+                          {% for r in valid_roles %}
+                            <option value="{{ r }}" {% if u.role == r %}selected{% endif %}>{{ r|capitalize }}</option>
+                          {% endfor %}
+                        </select>
+                        <noscript>
+                          <button type="submit" class="btn btn-sm btn-ghost">Save</button>
+                        </noscript>
+                      </form>
+                    </td>
+                    <td><span class="muted small">{{ u.auth_provider }}</span></td>
+                    <td>
+                      {% if u.is_banned %}
+                        <span class="badge badge-danger">Banned</span>
+                      {% else %}
+                        <span class="badge badge-success">Active</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <time datetime="{{ u.created_at.isoformat() }}Z">{{ u.created_at.strftime('%Y-%m-%d') }}</time>
+                    </td>
+                    <td>
+                      {% if u.last_login_at %}
+                        <time datetime="{{ u.last_login_at.isoformat() }}Z">{{ u.last_login_at.strftime('%Y-%m-%d') }}</time>
+                      {% else %}—{% endif %}
+                    </td>
+                    <td>
+                      {% if u.id != current_user.id %}
+                        <form method="post" action="{{ url_for('admin.toggle_ban', user_id=u.id) }}" class="inline-form">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                          {% if not u.is_banned %}
+                            <input type="text" name="reason" placeholder="Reason (optional)" maxlength="500" style="width:120px; font-size:0.8rem;">
+                          {% endif %}
+                          <button type="submit" class="btn btn-sm {% if u.is_banned %}btn-ghost{% else %}btn-danger{% endif %}">
+                            {{ 'Unban' if u.is_banned else 'Ban' }}
+                          </button>
+                        </form>
+                      {% else %}
+                        <span class="muted small">(you)</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if u.is_judge %}
+                        <form method="post" action="{{ url_for('admin.set_judge_fields', user_id=u.id) }}" class="inline-form" style="display:flex; flex-wrap:wrap; gap:0.3rem; align-items:center;">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                          {% set current_fields = u.judge_score_fields_list %}
+                          {% for sf in ['score1', 'score2', 'score3'] %}
+                            <label style="display:flex; align-items:center; gap:0.2rem; font-size:0.82rem; white-space:nowrap;">
+                              <input type="checkbox" name="score_fields" value="{{ sf }}"
+                                {% if sf in current_fields %}checked{% endif %}>
+                              {{ sf }}
+                            </label>
+                          {% endfor %}
+                          <button type="submit" class="btn btn-sm btn-ghost">Save</button>
+                        </form>
+                      {% else %}
+                        <span class="muted small">—</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <p class="muted" style="padding:1rem;">No users match your filter.</p>
+          {% endif %}
+        </div>
+
+        <div class="card">
+          <h3 class="h4">Export</h3>
+          <p class="muted">
+            Download a CSV of every user (id, email, name, role, auth provider,
+            Microsoft object id, ban status, ban reason, created/last-login
+            timestamps, last-login IP). The download is recorded in the audit log.
+          </p>
+          <a class="btn btn-primary" href="{{ url_for('admin.users_csv') }}">
+            Download all user data (CSV)
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+(function () {
+  document.addEventListener("change", function (e) {
+    var t = e.target;
+    if (!t || !t.classList || !t.classList.contains("js-role-select")) return;
+    var form = t.closest("form");
+    if (!form) return;
+    if (typeof form.requestSubmit === "function") {
+      form.requestSubmit();
+    } else {
+      form.submit();
+    }
+  });
+})();
+</script>
+{% endblock %}

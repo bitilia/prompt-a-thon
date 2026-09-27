@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}429 Too many requests — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container narrow center">
+    <p class="error-code" aria-hidden="true">429</p>
+    <h1>Too many requests</h1>
+    <p class="lead">You have made too many requests. Please slow down and try again shortly.</p>
+    <p>
+      <a class="btn btn-primary" href="{{ url_for('public.index') }}">Go home</a>
+    </p>
+  </div>
+</section>
+{% endblock %}

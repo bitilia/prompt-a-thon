@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Enter your code &middot; {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<section class="container narrow section">
+  <div class="card auth-card">
+    <h1>Enter your code</h1>
+    <p class="muted">We sent a six-digit code to your inbox. Enter it below to finish signing in.</p>
+    <form method="post" action="{{ url_for('auth.verify') }}" novalidate
+          class="otp-form" id="otp-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="code" id="otp-combined">
+
+      <div class="field">
+        <label for="otp-0">Six-digit code</label>
+        <div class="otp-group" role="group" aria-label="Six-digit code">
+          {% for i in range(6) %}
+            <input type="text"
+                   id="otp-{{ i }}"
+                   class="otp-cell"
+                   inputmode="numeric"
+                   pattern="\d*"
+                   maxlength="1"
+                   autocomplete="{% if loop.first %}one-time-code{% else %}off{% endif %}"
+                   aria-label="Digit {{ i + 1 }} of 6"
+                   {% if loop.first %}autofocus{% endif %}
+                   required>
+          {% endfor %}
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block">Verify and sign in</button>
+    </form>
+    <p class="muted small">
+      Didn't get the email? Check your spam folder, or
+      <a href="{{ url_for('auth.login') }}">request a new code</a>.
+    </p>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var cells = Array.prototype.slice.call(document.querySelectorAll(".otp-cell"));
+  var combined = document.getElementById("otp-combined");
+  var form = document.getElementById("otp-form");
+  if (!cells.length || !combined || !form) return;
+
+  function syncHidden() {
+    combined.value = cells.map(function (c) { return c.value || ""; }).join("");
+  }
+
+  function focusIndex(i) {
+    if (i < 0) i = 0;
+    if (i >= cells.length) i = cells.length - 1;
+    var el = cells[i];
+    el.focus();
+
+    try { el.setSelectionRange(el.value.length, el.value.length); } catch (_) {}
+  }
+
+  function distribute(text, startIdx) {
+
+    var digits = (text || "").replace(/\D+/g, "");
+    if (!digits) return;
+    var i = startIdx;
+    for (var k = 0; k < digits.length && i < cells.length; k++, i++) {
+      cells[i].value = digits[k];
+    }
+    syncHidden();
+    if (i >= cells.length) {
+      cells[cells.length - 1].blur();
+
+      if (combined.value.length === cells.length) {
+        form.requestSubmit ? form.requestSubmit() : form.submit();
+      }
+    } else {
+      focusIndex(i);
+    }
+  }
+
+  cells.forEach(function (cell, idx) {
+    cell.addEventListener("input", function (e) {
+
+      var v = cell.value;
+      if (v.length > 1) {
+        cell.value = "";
+        distribute(v, idx);
+        return;
+      }
+
+      if (v && !/^\d$/.test(v)) {
+        cell.value = "";
+        return;
+      }
+      syncHidden();
+      if (v && idx < cells.length - 1) focusIndex(idx + 1);
+    });
+
+    cell.addEventListener("keydown", function (e) {
+      var key = e.key;
+      if (key === "Backspace") {
+        if (cell.value) {
+
+          return;
+        }
+
+        if (idx > 0) {
+          e.preventDefault();
+          cells[idx - 1].value = "";
+          syncHidden();
+          focusIndex(idx - 1);
+        }
+      } else if (key === "ArrowLeft" && idx > 0) {
+        e.preventDefault(); focusIndex(idx - 1);
+      } else if (key === "ArrowRight" && idx < cells.length - 1) {
+        e.preventDefault(); focusIndex(idx + 1);
+      } else if (key === "Home") {
+        e.preventDefault(); focusIndex(0);
+      } else if (key === "End") {
+        e.preventDefault(); focusIndex(cells.length - 1);
+      }
+    });
+
+    cell.addEventListener("paste", function (e) {
+      e.preventDefault();
+      var text = (e.clipboardData || window.clipboardData).getData("text") || "";
+      distribute(text, idx);
+    });
+
+    cell.addEventListener("focus", function () {
+
+      try { cell.setSelectionRange(0, cell.value.length); } catch (_) {}
+    });
+  });
+
+  syncHidden();
+
+  form.addEventListener("submit", function () { syncHidden(); });
+})();
+</script>
+{% endblock %}

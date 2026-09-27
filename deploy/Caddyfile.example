@@ -1,0 +1,9 @@
+# Point DNS A/AAAA for your competition hostname at this server, then:
+#   sudo cp deploy/Caddyfile.example /etc/caddy/Caddyfile
+#   sudo systemctl reload caddy
+#
+# Replace competition.example.edu with your real hostname.
+
+competition.example.edu {
+	reverse_proxy 127.0.0.1:8100
+}

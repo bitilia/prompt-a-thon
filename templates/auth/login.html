@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Sign in &middot; {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<section class="container narrow section">
+  <div class="card auth-card">
+    <h1>Sign in</h1>
+    <p class="muted">Enter your email and we'll send you a six-digit code.</p>
+    <form method="post" action="{{ url_for('auth.login') }}" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field">
+        <label for="email">Email address</label>
+        <input id="email" name="email" type="email" autocomplete="email" required
+               maxlength="254" inputmode="email" autofocus>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Send sign-in code</button>
+    </form>
+
+    {% if MS_SSO_ENABLED %}
+      <div class="divider"><span>or</span></div>
+      <a class="btn btn-secondary btn-block" href="{{ url_for('auth.microsoft_start') }}">
+        Sign in with Microsoft
+      </a>
+    {% endif %}
+
+    <p class="muted small">
+      By continuing you agree to our <a href="{{ url_for('public.terms') }}">terms</a>
+      and <a href="{{ url_for('public.privacy') }}">privacy policy</a>.
+    </p>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% set active_admin_tab = 'index' %}
+{% block title %}Admin — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<section class="section admin-page">
+  <div class="container admin-container">
+    <div class="admin-layout">
+      {% include "admin/_sidebar.html" %}
+      <div class="admin-main">
+    <header class="section-head">
+      <h1>Admin</h1>
+      <p class="lead">Manage users, submissions, configuration and the event timeline.</p>
+    </header>
+
+    {% include "admin/_update_banner.html" %}
+
+    <div class="stat-row">
+      <article class="card stat-card">
+        <h2 class="stat-num">{{ user_count }}</h2>
+        <p class="stat-label">Users</p>
+      </article>
+      <article class="card stat-card">
+        <h2 class="stat-num">{{ submission_count }}</h2>
+        <p class="stat-label">Submissions</p>
+      </article>
+      <article class="card stat-card">
+        <h2 class="stat-num">{{ pending_count }}</h2>
+        <p class="stat-label">Awaiting review</p>
+      </article>
+      <article class="card stat-card">
+        <h2 class="stat-num">{{ reviewed_count }}</h2>
+        <p class="stat-label">Reviewed</p>
+      </article>
+    </div>
+
+    <div class="status-row">
+      <div class="card">
+        <h2 class="h3">Window status</h2>
+        <p>
+          Registration:
+          {% if registration_open %}
+            <span class="badge badge-success">Open</span>
+          {% else %}
+            <span class="badge badge-muted">Closed</span>
+          {% endif %}
+        </p>
+        <p>
+          Submissions:
+          {% if submission_open %}
+            <span class="badge badge-success">Open</span>
+          {% else %}
+            <span class="badge badge-muted">Closed</span>
+          {% endif %}
+        </p>
+        <p><a class="btn btn-ghost btn-sm" href="{{ url_for('admin.settings') }}">Edit timeline</a></p>
+      </div>
+    </div>
+
+    <article class="card">
+      <div style="display:flex; align-items:baseline; justify-content:space-between; gap:1rem; margin-bottom:0.75rem;">
+        <h2 class="h3" style="margin:0;">Recent activity</h2>
+        <a href="{{ url_for('admin.audit_log') }}" class="btn btn-ghost btn-sm">View full log &rarr;</a>
+      </div>
+      {% if audit %}
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>Actor</th>
+                <th>Action</th>
+                <th>Target</th>
+                <th>IP</th>
+                <th>Detail</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for a in audit %}
+                <tr>
+                  <td><time datetime="{{ a.created_at.isoformat() }}Z">{{ a.created_at.strftime('%Y-%m-%d %H:%M') }}</time></td>
+                  <td><span class="pii-email">{{ a.actor_email or '—' }}</span></td>
+                  <td><code>{{ a.action }}</code></td>
+                  <td>
+                    {% if a.target_type %}{{ a.target_type }}{% if a.target_id %}#{{ a.target_id }}{% endif %}{% else %}—{% endif %}
+                  </td>
+                  <td><code class="pii-ip">{{ a.ip_address or '—' }}</code></td>
+                  <td class="truncate">{{ a.detail or '' }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="muted">No activity yet.</p>
+      {% endif %}
+    </article>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

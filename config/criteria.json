@@ -1,0 +1,20 @@
+{
+  "title": "Mark Scheme",
+  "criteria": [
+    {
+      "name": "Report Quality",
+      "marks": 5,
+      "body": "Assess the clarity, structure and quality of the written report.\n\n| Band | Marks | Descriptor |\n|------|-------|------------|\n| Excellent | 5 | Clear, well-structured and professionally presented. |\n| Good | 4 | Mostly clear with minor presentation issues. |\n| Satisfactory | 3 | Adequate structure; some clarity issues. |\n| Limited | 2 | Poorly structured or difficult to follow. |\n| Minimal | 0–1 | Very little coherent written work. |"
+    },
+    {
+      "name": "Use of AI",
+      "marks": 10,
+      "body": "Assess how effectively and critically the participant used AI tools throughout the task.\n\n| Band | Marks | Descriptor |\n|------|-------|------------|\n| Excellent | 9–10 | Sophisticated, strategic use with clear reflection and iteration. |\n| Good | 7–8 | Effective use with some evidence of critical evaluation. |\n| Satisfactory | 5–6 | AI used but with limited reflection or strategic intent. |\n| Limited | 3–4 | Basic or uncritical use of AI tools. |\n| Minimal | 0–2 | Little evidence of meaningful AI engagement. |"
+    },
+    {
+      "name": "Result / Product Quality",
+      "marks": 5,
+      "body": "Assess the quality and accuracy of the final output or product produced.\n\n| Band | Marks | Descriptor |\n|------|-------|------------|\n| Excellent | 5 | High-quality, accurate and well-refined final product. |\n| Good | 4 | Good quality with minor inaccuracies or omissions. |\n| Satisfactory | 3 | Adequate quality; some errors or incomplete elements. |\n| Limited | 2 | Below expectations; significant gaps or inaccuracies. |\n| Minimal | 0–1 | Very limited or unsatisfactory final product. |"
+    }
+  ]
+}

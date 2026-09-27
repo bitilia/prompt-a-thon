@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+{% set active_admin_tab = 'style_config' %}
+{% block title %}Theme — Admin — {{ APP_NAME }}{% endblock %}
+
+{% block head_extra %}
+<style>
+{% for fname in fonts %}
+@font-face {
+  font-family: "preview-{{ fname | replace('.ttf','') | replace(' ','') }}";
+  src: url("{{ url_for('static', filename='fonts/' + fname) }}") format("truetype");
+  font-display: swap;
+}
+{% endfor %}
+
+.theme-section { margin-bottom: 1.75rem; }
+.theme-section:last-child { margin-bottom: 0; }
+.theme-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; max-width: 360px; }
+.mode-opt { position: relative; }
+.mode-opt input { position: absolute; opacity: 0; width: 0; height: 0; }
+.mode-card {
+  display: flex; align-items: center; gap: 0.65rem;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  background: var(--bg);
+  transition: border-color var(--t), box-shadow var(--t);
+}
+.mode-opt input:checked + .mode-card {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+.mode-swatch {
+  width: 32px; height: 22px; border-radius: 0;
+  border: 1px solid var(--border); flex-shrink: 0;
+}
+.mode-swatch.light { background: linear-gradient(135deg, #f8fafc 50%, #e2e8f0 50%); }
+.mode-swatch.dark  { background: linear-gradient(135deg, #0f172a 50%, #1e293b 50%); }
+.mode-name { font-weight: 600; font-size: 0.9rem; }
+
+.accent-row { display: flex; align-items: center; gap: 1rem; }
+.accent-picker {
+  width: 48px; height: 40px;
+  padding: 2px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  background: none;
+  transition: border-color var(--t);
+}
+.accent-picker:hover, .accent-picker:focus { border-color: var(--primary); outline: none; }
+.accent-hex-display {
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  min-width: 6ch;
+}
+
+.anim-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.6rem; max-width: 560px; }
+.anim-opt { position: relative; }
+.anim-opt input { position: absolute; opacity: 0; width: 0; height: 0; }
+.anim-card {
+  display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+  padding: 0.8rem 0.6rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color var(--t), box-shadow var(--t);
+  background: var(--bg);
+}
+.anim-opt input:checked + .anim-card {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+.anim-icon {
+  width: 40px; height: 28px;
+  border-radius: 0;
+  background: var(--bg-softer);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem;
+}
+.anim-name { font-weight: 600; font-size: 0.85rem; }
+.anim-desc { font-size: 0.72rem; color: var(--text-muted); line-height: 1.3; }
+
+.font-row {
+  display: flex; align-items: center; gap: 0.65rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+}
+.font-row.is-active {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+.font-name { flex: 1; font-size: 0.9rem; }
+.font-file { font-size: 0.78rem; color: var(--text-muted); flex-shrink: 0; }
+
+.sc-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 1.5rem;
+  align-items: start;
+}
+.sc-preview-pane {
+  position: sticky;
+  top: 1.5rem;
+}
+.sc-preview-label {
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--a-text-2, #7a8399);
+  margin-bottom: 0.5rem; display: flex; align-items: center;
+  justify-content: space-between;
+}
+.sc-preview-wrap {
+  position: relative;
+  width: 100%; height: 560px;
+  overflow: hidden;
+  border: 1px solid var(--a-border, #1e2232);
+  background: var(--a-surface, #101318);
+}
+.sc-preview-wrap iframe { width: 100%; height: 100%; border: 0; pointer-events: none; background: transparent; }
+.sc-preview-overlay {
+  position: absolute; inset: 0; z-index: 2;
+}
+@media (max-width: 1100px) {
+  .sc-layout { grid-template-columns: 1fr; }
+  .sc-preview-pane { position: static; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section admin-page">
+  <div class="container admin-container">
+    <div class="admin-layout">
+      {% include "admin/_sidebar.html" %}
+      <div class="admin-main">
+
+        <header class="section-head">
+          <h1>Theme</h1>
+          <p class="lead">Choose the look and feel of the site. Changes apply instantly to all visitors.</p>
+        </header>
+
+        <div class="sc-layout">
+        <div>
+
+        <div class="card form-card" style="margin-bottom: 1.5rem;">
+          <span class="theme-label">Typeface</span>
+          <p class="muted small" style="margin: -0.25rem 0 1rem;">Upload a <code>.ttf</code> or <code>.otf</code> font then select it. The active font applies site-wide.</p>
+
+          <form method="post" action="{{ url_for('admin.font_upload') }}" enctype="multipart/form-data"
+                style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="file" name="font" accept=".ttf,.otf" style="flex:1; min-width:180px;">
+            <button type="submit" class="btn btn-ghost btn-sm">Upload font</button>
+          </form>
+
+          {% if fonts %}
+          <div style="display:flex; flex-direction:column; gap:0.35rem;">
+            {% for fname in fonts %}
+              {% set is_active = fname == active_font %}
+              <div class="font-row {% if is_active %}is-active{% endif %}">
+                <span class="font-name" style="font-family:'preview-{{ fname | replace('.ttf','') | replace(' ','') }}', sans-serif; font-weight:{% if is_active %}600{% else %}400{% endif %};">
+                  {{ fname | replace('.ttf','') | replace('_',' ') }}
+                  {% if is_active %}<span class="badge badge-success" style="margin-left:0.4rem;">Active</span>{% endif %}
+                </span>
+                <span class="font-file">{{ fname }}</span>
+                {% if not is_active %}
+                <form method="post" action="{{ url_for('admin.font_select') }}" style="margin:0;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="filename" value="{{ fname }}">
+                  <button type="submit" class="btn btn-primary btn-sm">Select</button>
+                </form>
+                {% else %}
+                <span class="btn btn-sm" style="opacity:0.45; cursor:default; background:var(--primary); color:#fff;">Selected</span>
+                {% endif %}
+                {% if fname not in ('RobotoMono.ttf', 'RobotoMono.otf') %}
+                <form method="post" action="{{ url_for('admin.font_delete') }}" style="margin:0;"
+                      onsubmit="return confirm('Delete {{ fname }}? This cannot be undone.');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="filename" value="{{ fname }}">
+                  <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                </form>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="muted small">No .ttf fonts found in <code>static/fonts/</code>.</p>
+          {% endif %}
+        </div>
+
+        <form method="post" class="card form-card" novalidate data-sc-save>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <div class="theme-section">
+            <span class="theme-label">Colour scheme</span>
+            <div class="mode-grid">
+              <div class="mode-opt">
+                <input type="radio" name="mode" id="mode-light" value="light" {% if mode == 'light' %}checked{% endif %}>
+                <label class="mode-card" for="mode-light">
+                  <span class="mode-swatch light"></span>
+                  <span class="mode-name">Light</span>
+                </label>
+              </div>
+              <div class="mode-opt">
+                <input type="radio" name="mode" id="mode-dark" value="dark" {% if mode == 'dark' %}checked{% endif %}>
+                <label class="mode-card" for="mode-dark">
+                  <span class="mode-swatch dark"></span>
+                  <span class="mode-name">Dark</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="theme-section">
+            <span class="theme-label">Accent colour</span>
+            <div class="accent-row">
+              <input type="color" name="accent" id="accent-pick"
+                     value="{{ accent }}"
+                     class="accent-picker"
+                     oninput="document.getElementById('accent-hex').textContent = this.value;">
+              <span class="accent-hex-display" id="accent-hex">{{ accent }}</span>
+            </div>
+          </div>
+
+          <div class="theme-section">
+            <span class="theme-label">Page animation</span>
+            <div class="anim-grid">
+              {% set anim_meta = {
+                'none':  ('—',  'None',  'No animations'),
+                'fade':  ('◌',  'Fade',  'Fade in gently'),
+                'rise':  ('↑',  'Rise',  'Rise up on scroll'),
+                'scale': ('⊕',  'Scale', 'Grow into view'),
+              } %}
+              {% for key, (icon, name, desc) in anim_meta.items() %}
+              <div class="anim-opt">
+                <input type="radio" name="animation" id="anim-{{ key }}" value="{{ key }}" {% if animation == key %}checked{% endif %}>
+                <label class="anim-card" for="anim-{{ key }}">
+                  <span class="anim-icon">{{ icon }}</span>
+                  <span class="anim-name">{{ name }}</span>
+                  <span class="anim-desc">{{ desc }}</span>
+                </label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save theme</button>
+          </div>
+        </form>
+
+        <div style="margin-top: 1rem;">
+          <form method="post" action="{{ url_for('admin.config_style_reset') }}" data-sc-save
+                onsubmit="return confirm('Reset all theme settings to defaults?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-ghost btn-sm">Restore defaults</button>
+          </form>
+        </div>
+
+        </div>
+
+        <div class="sc-preview-pane">
+          <div class="sc-preview-label">
+            <span>Live preview</span>
+          </div>
+          <div class="sc-preview-wrap">
+            <iframe id="sc-iframe" src="{{ url_for('public.index') }}"
+                    title="Site preview" tabindex="-1" loading="lazy"
+                    scrolling="no"></iframe>
+            <div class="sc-preview-overlay" aria-hidden="true"></div>
+          </div>
+        </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+<div id="sc-loading" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(11,13,18,.75);align-items:center;justify-content:center;">
+  <div style="width:26px;height:26px;border:2px solid rgba(255,255,255,.12);border-top-color:#f27d00;border-radius:0;animation:sc-spin .55s linear infinite;"></div>
+</div>
+<style nonce="{{ csp_nonce }}">@keyframes sc-spin{to{transform:rotate(360deg)}}</style>
+<script nonce="{{ csp_nonce }}">
+(function(){
+  var fr      = document.getElementById('sc-iframe');
+  var overlay = document.getElementById('sc-loading');
+
+  function scaleFrame(){  }
+  requestAnimationFrame(function(){ requestAnimationFrame(scaleFrame); });
+  window.addEventListener('load', scaleFrame);
+  window.addEventListener('resize', scaleFrame);
+  setTimeout(scaleFrame, 300);
+  if (window.ResizeObserver && fr) {
+    new ResizeObserver(scaleFrame).observe(fr.parentElement);
+  }
+
+  document.querySelectorAll('form[data-sc-save]').forEach(function(f){
+    f.addEventListener('submit', function(e){
+
+      if (f.dataset.scCancelled) { delete f.dataset.scCancelled; return; }
+      e.preventDefault();
+      if (overlay) overlay.style.display = 'flex';
+      fetch(f.action || window.location.href, {
+        method: 'POST',
+        body: new FormData(f)
+      }).finally(function(){
+        setTimeout(function(){ window.location.reload(); }, 200);
+      });
+    });
+  });
+
+  var restoreForm = document.querySelector('form[data-sc-save][action*="reset"]');
+  if (restoreForm) {
+    var origOnsubmit = restoreForm.onsubmit;
+    restoreForm.onsubmit = function(){
+      var ok = origOnsubmit ? origOnsubmit.call(this) : true;
+      if (!ok) { restoreForm.dataset.scCancelled = '1'; }
+      return true;
+    };
+  }
+})();
+</script>
+{% endblock %}

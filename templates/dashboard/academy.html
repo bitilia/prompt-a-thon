@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% set active_dashboard_tab = 'academy' %}
+{% block title %}Academy &middot; {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container">
+    {% include "dashboard/_nav.html" %}
+
+    <header class="section-head">
+      <h1>{{ PAGE_CONTENT.academy_title }}</h1>
+      <p class="lead">{{ PAGE_CONTENT.academy_subtitle }}</p>
+
+      <div class="progress-summary">
+        {% set pct = ((completed_count / total_items * 100) if total_items else 0) | round %}
+        <div class="progress-bar"
+             id="academy-progress-bar"
+             data-percent="{{ pct }}"
+             aria-label="Academy progress">
+          <span class="progress-fill"></span>
+        </div>
+        <p class="muted">
+          <span id="academy-completed-count">{{ completed_count }}</span> of
+          <span id="academy-total-count">{{ total_items }}</span> items completed
+        </p>
+      </div>
+    </header>
+
+    <div class="modules">
+      {% for m in modules %}
+        <details class="module" {% if loop.first %}open{% endif %}>
+          <summary>
+            <span class="module-title">
+              <span class="module-num">{{ loop.index }}</span>
+              {{ m.title }}
+            </span>
+            {% if m.description %}<span class="module-desc muted">{{ m.description }}</span>{% endif %}
+          </summary>
+
+          <div class="module-body">
+            {% for item in (m['items'] or []) %}
+              {% set full_id = m.id ~ ':' ~ item.id %}
+              {% set done = full_id in progress %}
+              <article class="academy-item {% if done %}is-done{% endif %}"
+                       data-full-id="{{ full_id }}"
+                       data-module-id="{{ m.id }}"
+                       data-item-id-only="{{ item.id }}">
+                <header class="item-head">
+                  <span class="item-type item-type-{{ item.type }}" aria-hidden="true"></span>
+                  <h3 class="item-title">{{ item.title }}</h3>
+                  <span class="item-status">
+                    {% if done %}<span class="badge badge-success">Completed</span>{% endif %}
+                  </span>
+                </header>
+
+                {% if item.description %}<p>{{ item.description }}</p>{% endif %}
+
+                {% if item.type == 'video' and item.url %}
+                  <div class="video-wrap">
+                    <iframe src="{{ item.url }}" title="{{ item.title }}" loading="lazy"
+                      referrerpolicy="strict-origin-when-cross-origin"
+                      allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
+                      allowfullscreen></iframe>
+                  </div>
+                  {% if item.duration %}<p class="muted small">Approx. {{ item.duration }} min watch</p>{% endif %}
+                {% elif item.type == 'text' and item.url %}
+                  <p>
+                    <a class="btn btn-ghost btn-sm" href="{{ item.url }}" target="_blank" rel="noopener noreferrer">Open reading</a>
+                    {% if item.read_minutes %}<span class="muted small">&middot; {{ item.read_minutes }} min read</span>{% endif %}
+                  </p>
+                {% elif item.content %}
+                  <div class="item-content">{{ item.content | md_to_html }}</div>
+                {% endif %}
+
+                <div class="item-actions">
+                  <button type="button"
+                          class="btn btn-primary btn-sm js-academy-complete"
+                          {% if done %}hidden{% endif %}>
+                    Mark complete
+                  </button>
+                  <button type="button"
+                          class="btn btn-ghost btn-sm js-academy-uncomplete"
+                          {% if not done %}hidden{% endif %}>
+                    Unmark
+                  </button>
+                </div>
+              </article>
+            {% else %}
+              <p class="muted">No items in this module yet.</p>
+            {% endfor %}
+          </div>
+        </details>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

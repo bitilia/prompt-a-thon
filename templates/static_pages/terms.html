@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Terms of use &middot; {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container narrow legal">
+    <header class="section-head">
+      <h1>Terms of use</h1>
+      <p class="muted">By using this site you agree to these terms.</p>
+    </header>
+
+    <article class="card">
+      <h2>1. Who provides this service</h2>
+      <p>
+        This site is hosted at
+        {% if SITE_DOMAIN %}<code>{{ SITE_DOMAIN }}</code>{% else %}this domain{% endif %}
+        by whoever installed this copy of {{ APP_NAME }}. In a default install that
+        is {{ COLLEGE_NAME }}. These terms are a starter text. The organiser should
+        replace them before a real event.
+      </p>
+
+      <h2>2. Eligibility</h2>
+      <p>
+        Entry is open to those identified by the organisers as eligible. The
+        organisers may require proof of eligibility at any time.
+      </p>
+
+      <h2>3. Acceptable use</h2>
+      <p>You agree not to:</p>
+      <ul>
+        <li>impersonate other people or misrepresent your affiliation;</li>
+        <li>upload malware, illegal content, or anything you do not have the right to share;</li>
+        <li>attempt to bypass authentication, rate limiting or other security controls;</li>
+        <li>scrape, automate or otherwise abuse the service;</li>
+        <li>harass other participants, judges or organisers.</li>
+      </ul>
+      <p>
+        Violations may result in removal of your submissions and, at the
+        organisers' discretion, a ban from the platform.
+      </p>
+
+      <h2>4. Submissions</h2>
+      <p>
+        You confirm that work you submit is your own (or properly attributed),
+        and that you have the rights necessary to submit it. You grant the
+        organisers a non-exclusive licence to display, evaluate and discuss
+        your submission for the purposes of running and judging the event.
+        You retain copyright in your work.
+      </p>
+
+      <h2>5. AI-generated content</h2>
+      <p>
+        Many tasks expect AI-assisted work. You must follow each task's brief
+        about disclosure and demonstrate the prompts and judgement you applied.
+        Submissions that ignore the brief may be disqualified.
+      </p>
+
+      <h2>6. No warranty</h2>
+      <p>
+        The service is provided "as is". The site operators and {{ COLLEGE_NAME }} do
+        their best to keep it available and secure but make no guarantees of uptime
+        or fitness for any particular purpose.
+      </p>
+
+      <h2>7. Liability</h2>
+      <p>
+        To the maximum extent permitted by law, the operators of this site and
+        {{ COLLEGE_NAME }} are not liable for indirect or consequential losses
+        arising from your use of the service. Nothing in these terms limits liability
+        that cannot be limited under UK law.
+      </p>
+
+      <h2>8. Changes</h2>
+      <p>
+        We may update these terms. Continued use of the service after a change
+        is taken as acceptance of the new terms.
+      </p>
+
+      <h2>9. Contact</h2>
+      <p>
+        Questions about these terms should go to
+        {% if CONTACT_EMAIL %}<a href="mailto:{{ CONTACT_EMAIL }}">{{ CONTACT_EMAIL }}</a>{% else %}the event organisers{% endif %}.
+      </p>
+    </article>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}403 Forbidden — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container narrow center">
+    <p class="error-code" aria-hidden="true">403</p>
+    <h1>Forbidden</h1>
+    <p class="lead">You do not have permission to view this page.</p>
+    <p>
+      <a class="btn btn-primary" href="{{ url_for('public.index') }}">Go home</a>
+    </p>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,23 @@
+[Unit]
+Description=prompt-a-thon competition app
+After=network.target prompt-a-thon-convert.service
+Wants=prompt-a-thon-convert.service
+
+[Service]
+Type=simple
+User=promptathon
+Group=promptathon
+WorkingDirectory=/opt/prompt-a-thon
+EnvironmentFile=/opt/prompt-a-thon/.env
+Environment=CONVERSION_DIR=/opt/prompt-a-thon/conversion
+ExecStart=/opt/prompt-a-thon/venv/bin/gunicorn --workers 2 --threads 4 --timeout 120 --graceful-timeout 30 --max-requests 1000 --max-requests-jitter 50 --bind 127.0.0.1:8100 --error-logfile /opt/prompt-a-thon/logs/error.log --access-logfile /opt/prompt-a-thon/logs/access.log 'app:create_app()'
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=yes
+ReadWritePaths=/opt/prompt-a-thon/instance /opt/prompt-a-thon/uploads /opt/prompt-a-thon/logs
+
+[Install]
+WantedBy=multi-user.target

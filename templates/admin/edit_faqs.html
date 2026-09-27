@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% set active_admin_tab = 'edit_faqs' %}
+{% block title %}Edit FAQs — Admin — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<section class="section admin-page">
+  <div class="container admin-container">
+    <div class="admin-layout">
+      {% include "admin/_sidebar.html" %}
+      <div class="admin-main">
+        <header class="section-head">
+          <h1>Edit FAQs</h1>
+          <p class="lead">Add, edit, or remove FAQ entries shown on the home page.</p>
+        </header>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for cat, msg in messages %}
+            <div class="alert alert-{{ cat }}" style="margin-bottom:1rem;">{{ msg }}</div>
+          {% endfor %}
+        {% endwith %}
+        <form method="post" class="card form-card" novalidate id="faq-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <div id="faq-list">
+            {% for faq in faqs %}
+            <div class="faq-row" style="border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:0.75rem;">
+              <div class="field">
+                <label>Question</label>
+                <input type="text" name="faq_q" value="{{ faq.q }}" required>
+              </div>
+              <div class="field">
+                <label>Answer <span class="muted small">(Markdown links supported: [text](url))</span></label>
+                <textarea name="faq_a" rows="3">{{ faq.a }}</textarea>
+              </div>
+              <button type="button" class="btn btn-ghost btn-sm js-remove-faq">Remove</button>
+            </div>
+            {% endfor %}
+          </div>
+
+          <button type="button" class="btn btn-ghost btn-sm" id="add-faq-btn"
+                  style="margin-bottom:1rem;">+ Add FAQ</button>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save FAQs</button>
+            <a href="{{ url_for('admin.index') }}" class="btn btn-ghost">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+(function() {
+  document.getElementById("add-faq-btn").addEventListener("click", function() {
+    var list = document.getElementById("faq-list");
+    var row = document.createElement("div");
+    row.className = "faq-row";
+    row.style.cssText = "border:1px solid var(--border);border-radius:var(--radius);padding:1rem;margin-bottom:0.75rem;";
+    row.innerHTML = '<div class="field"><label>Question</label><input type="text" name="faq_q" required></div>'
+      + '<div class="field"><label>Answer</label><textarea name="faq_a" rows="3"></textarea></div>'
+      + '<button type="button" class="btn btn-ghost btn-sm js-remove-faq">Remove</button>';
+    list.appendChild(row);
+  });
+  document.getElementById("faq-list").addEventListener("click", function(e) {
+    if (e.target.classList.contains("js-remove-faq")) {
+      e.target.closest(".faq-row").remove();
+    }
+  });
+})();
+</script>
+{% endblock %}

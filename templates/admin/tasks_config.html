@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% set active_admin_tab = 'tasks_config' %}
+{% block title %}Tasks JSON — Admin — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<section class="section admin-page">
+  <div class="container admin-container">
+    <div class="admin-layout">
+      {% include "admin/_sidebar.html" %}
+      <div class="admin-main">
+    <header class="section-head">
+      <h1>Tasks configuration</h1>
+      <p class="lead">Edit the live <code>tasks.json</code> used by the participant dashboard.</p>
+    </header>
+
+    {% if error %}
+      <div class="card alert alert-error">
+        <strong>Validation error:</strong>
+        <pre class="content-pre">{{ error }}</pre>
+      </div>
+    {% endif %}
+
+    <form method="post" class="card form-card js-json-form" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="field">
+        <label for="config">tasks.json</label>
+        <textarea id="config" name="config" rows="28" class="code-area" spellcheck="false" autocomplete="off">{{ config_text }}</textarea>
+        <small class="muted">
+          Schema: <code>{ "tasks": [ { "id", "title", "description", "criteria": [ ... ] } ] }</code>.
+          Saved atomically; previous file is overwritten on success.
+        </small>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Save tasks.json</button>
+      </div>
+    </form>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

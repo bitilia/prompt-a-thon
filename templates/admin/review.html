@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% set active_admin_tab = 'submissions' %}
+{% block title %}Review submission #{{ sub.id }} — {{ APP_NAME }}{% endblock %}
+
+{% block head_extra %}
+<style>
+.file-viewer-card { padding: 0; overflow: hidden; margin-bottom: 1rem; }
+.viewer-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.75rem; flex-wrap: wrap;
+  padding: 0.6rem 0.9rem;
+  background: var(--bg-soft); border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+.viewer-filename {
+  font-family: var(--font-mono); font-size: 0.82rem;
+  color: var(--text-muted); overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; max-width: 260px;
+}
+.viewer-placeholder {
+  display: flex; align-items: center; justify-content: center;
+  height: 120px; color: var(--text-muted); font-size: 0.88rem;
+  flex-direction: column; gap: 0.5rem;
+  background: var(--bg-soft);
+}
+.viewer-frame { width: 100%; height: 720px; border: none; background: #4a4a4a; }
+.viewer-warning {
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  padding: 0.55rem 0.85rem;
+  background: var(--bg-soft); border-top: 1px solid var(--border);
+  font-size: 0.79rem; color: var(--text-muted);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section admin-page">
+  <div class="container admin-container">
+    <div class="admin-layout">
+      {% include "admin/_sidebar.html" %}
+      <div class="admin-main">
+        <header class="section-head">
+          <h1>Review submission #{{ sub.id }}</h1>
+          <p><a class="btn btn-ghost btn-sm" href="{{ url_for('admin.submissions') }}">Back to submissions</a></p>
+        </header>
+
+        <article class="card">
+          <h2 class="h3">{{ sub.title }}</h2>
+          <dl class="meta-grid">
+            <dt>Submission ID</dt>
+            <dd><code>{{ sub.anonymous_id or '—' }}</code> <span class="muted small">(internal #{{ sub.id }})</span></dd>
+            {% if current_user.is_admin %}
+            <dt>Participant</dt>
+            <dd>{% if submitter %}<code class="pii-email">{{ submitter.email }}</code>{% else %}—{% endif %}</dd>
+            {% endif %}
+            <dt>Task</dt>
+            <dd>{{ task_titles.get(sub.task_id, sub.task_id) }}</dd>
+            <dt>Submitted</dt>
+            <dd><time datetime="{{ sub.submitted_at.isoformat() }}Z">{{ sub.submitted_at.strftime('%Y-%m-%d %H:%M') }} UTC</time></dd>
+            <dt>Current status</dt>
+            <dd><span class="badge badge-{{ sub.status }}">{{ sub.status_label }}</span></dd>
+            {% if current_user.is_admin %}
+            <dt>IP address</dt>
+            <dd><code class="pii-ip">{{ sub.ip_address or '—' }}</code></dd>
+            {% endif %}
+          </dl>
+        </article>
+
+        {% if sub.content %}
+        <article class="card">
+          <h3 class="h4">Written content</h3>
+          <pre class="content-pre">{{ sub.content }}</pre>
+        </article>
+        {% endif %}
+
+        {% if sub.file_path %}
+        {% set ext0 = (sub.filename or '').rsplit('.', 1)|last|lower %}
+        <article class="card file-viewer-card">
+          <div class="viewer-toolbar">
+            <span class="viewer-filename">File 1: {{ sub.filename or 'file' }}</span>
+            <div style="display:flex;gap:0.5rem;align-items:center;flex-shrink:0;">
+              <span class="badge badge-info" style="font-size:0.72rem;">{{ ext0 }}</span>
+              {% if sub.file_size %}<span class="muted small">{{ (sub.file_size/1024)|round(1) }} KB</span>{% endif %}
+              <button type="button" class="btn btn-primary btn-sm js-show-file"
+                      data-view-url="{{ url_for('admin.view_file', anon_id=sub.anonymous_id) }}"
+                      data-uid="f0">Show file</button>
+              <a class="btn btn-ghost btn-sm"
+                 href="{{ url_for('participant.download', anon_id=sub.anonymous_id) }}"
+                 title="Downloads the original unmodified file to your device">↓ Download original</a>
+            </div>
+          </div>
+          <div id="vph-f0" class="viewer-placeholder">
+
+            <span>Press <strong>Show file</strong> to load the sanitised PDF preview</span>
+          </div>
+          <iframe id="vframe-f0" class="viewer-frame"
+                  referrerpolicy="no-referrer"
+                  title="Sanitised PDF preview"
+                  style="display:none;"></iframe>
+          <div class="viewer-warning">
+            <span style="font-weight:700;color:var(--primary);">Secure</span>
+            <span><strong>Show file</strong> displays the sanitised PDF. <strong>Download original</strong> saves the original uploaded file.</span>
+          </div>
+        </article>
+        {% endif %}
+
+        {% for ef in sub.extra_files %}
+        {% set ef_uid = "ef" ~ loop.index %}
+        {% set ef_ext = (ef.filename or '').rsplit('.', 1)|last|lower %}
+        <article class="card file-viewer-card">
+          <div class="viewer-toolbar">
+            <span class="viewer-filename">File {{ loop.index + 1 }}: {{ ef.filename or 'file' }}</span>
+            <div style="display:flex;gap:0.5rem;align-items:center;flex-shrink:0;">
+              <span class="badge badge-info" style="font-size:0.72rem;">{{ ef_ext }}</span>
+              {% if ef.file_size %}<span class="muted small">{{ (ef.file_size/1024)|round(1) }} KB</span>{% endif %}
+              <button type="button" class="btn btn-primary btn-sm js-show-file"
+                      data-view-url="{{ url_for('admin.view_extra_file', file_id=ef.id) }}"
+                      data-uid="{{ ef_uid }}">Show file</button>
+              <a class="btn btn-ghost btn-sm"
+                 href="{{ url_for('participant.download_extra_file', file_id=ef.id) }}"
+                 title="Downloads the original unmodified file to your device">↓ Download original</a>
+            </div>
+          </div>
+          <div id="vph-{{ ef_uid }}" class="viewer-placeholder">
+
+            <span>Press <strong>Show file</strong> to load the sanitised PDF preview</span>
+          </div>
+          <iframe id="vframe-{{ ef_uid }}" class="viewer-frame"
+                  referrerpolicy="no-referrer"
+                  title="Sanitised PDF preview"
+                  style="display:none;"></iframe>
+          <div class="viewer-warning">
+            <span style="font-weight:700;color:var(--primary);">Secure</span>
+            <span><strong>Show file</strong> displays the sanitised PDF. <strong>Download original</strong> saves the original uploaded file.</span>
+          </div>
+        </article>
+        {% endfor %}
+
+        <form method="post" class="card form-card" novalidate>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <div class="field">
+            <label for="status">Status</label>
+            <select id="status" name="status" required>
+              {% for k, v in statuses.items() %}
+                <option value="{{ k }}" {% if sub.status == k %}selected{% endif %}>{{ v }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <fieldset class="field score-fieldset">
+            <legend>Scores (each 1–20; total out of 60)</legend>
+            {% if not current_user.is_admin and not allowed_fields %}
+              <p class="muted small">You have not been assigned any score fields for this event.</p>
+            {% endif %}
+            <div class="score-grid">
+              {% for field_info in [
+                  ('score1', 'Score 1', sub.score1),
+                  ('score2', 'Score 2', sub.score2),
+                  ('score3', 'Score 3', sub.score3),
+              ] %}
+              {% set fname_s = field_info[0] %}
+              {% set label_s = field_info[1] %}
+              {% set val_s   = field_info[2] %}
+              <div class="score-cell">
+                {% if fname_s in allowed_fields %}
+                  <label for="{{ fname_s }}">{{ label_s }}</label>
+                  <input id="{{ fname_s }}" name="{{ fname_s }}" type="number" min="1" max="20"
+                         class="js-score-input"
+                         oninput="if(+this.value>20)this.value=20;if(this.value!==''&&+this.value<1)this.value=1;"
+                         value="{{ val_s if val_s is not none else '' }}">
+                {% else %}
+                  <label style="opacity:0.5;">{{ label_s }} <span title="Not your assigned field">locked</span></label>
+                  <input type="number" class="js-score-input"
+                         value="{{ val_s if val_s is not none else '' }}"
+                         disabled style="opacity:0.45;cursor:not-allowed;">
+                {% endif %}
+              </div>
+              {% endfor %}
+              <div class="score-cell score-total">
+                <label>Total</label>
+                <output id="score-total">
+                  {% if sub.total_score is not none %}{{ sub.total_score }}{% else %}—{% endif %}/60
+                </output>
+              </div>
+            </div>
+          </fieldset>
+
+          <div class="field">
+            <label for="notes">Judge notes</label>
+            <textarea id="notes" name="notes" rows="8" maxlength="5000"
+                      placeholder="Feedback for the participant…">{{ sub.judge_notes or '' }}</textarea>
+            <small class="muted">Visible to the participant. Encrypted at rest.</small>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save review</button>
+            <a class="btn btn-ghost" href="{{ url_for('admin.submissions') }}">Cancel</a>
+          </div>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+(function () {
+
+  var inputs = Array.prototype.slice.call(document.querySelectorAll(".js-score-input"));
+  var output = document.getElementById("score-total");
+  if (output) {
+    function recompute() {
+      var total = 0, any = false;
+      inputs.forEach(function(i) {
+        var n = parseInt(i.value, 10);
+        if (!isNaN(n)) { total += n; any = true; }
+      });
+      output.textContent = (any ? total : "\u2014") + "/60";
+    }
+    inputs.forEach(function(i){ i.addEventListener("input", recompute); });
+    recompute();
+  }
+
+  document.querySelectorAll(".js-show-file").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      var uid    = btn.dataset.uid;
+      var url    = btn.dataset.viewUrl;
+      var ph     = document.getElementById("vph-" + uid);
+      var iframe = document.getElementById("vframe-" + uid);
+      if (!iframe) return;
+
+      btn.disabled = true;
+      btn.textContent = "Loading\u2026";
+      if (ph) ph.style.display = "none";
+      iframe.style.display = "block";
+
+      iframe.onload = function() {
+        btn.textContent = "Reload";
+        btn.disabled = false;
+      };
+
+      iframe.src = url + "#toolbar=0&navpanes=0&scrollbar=0";
+    });
+  });
+})();
+</script>
+{% endblock %}

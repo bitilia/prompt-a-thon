@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% set active_admin_tab = 'server' %}
+{% block title %}Server &middot; Admin &middot; {{ APP_NAME }}{% endblock %}
+
+{% macro fmt_bytes(n) -%}
+{%- if n is none -%}—{%- elif n < 1024 -%}{{ n }} B
+{%- elif n < 1024 * 1024 -%}{{ (n / 1024) | round(1) }} KB
+{%- elif n < 1024 * 1024 * 1024 -%}{{ (n / (1024*1024)) | round(1) }} MB
+{%- else -%}{{ (n / (1024*1024*1024)) | round(2) }} GB
+{%- endif -%}
+{%- endmacro %}
+
+{% block content %}
+<section class="section admin-page">
+  <div class="container admin-container">
+    <div class="admin-layout">
+      {% include "admin/_sidebar.html" %}
+      <div class="admin-main">
+
+    <header class="section-head">
+      <h1>Server status</h1>
+      <p class="lead">Live snapshot of the host this app is running on.</p>
+    </header>
+
+    <div class="stat-row">
+      <article class="card stat-card">
+        <h2 class="stat-num">{{ counts.users }}</h2>
+        <p class="stat-label">Users</p>
+      </article>
+      <article class="card stat-card">
+        <h2 class="stat-num">{{ counts.submissions }}</h2>
+        <p class="stat-label">Submissions</p>
+      </article>
+      <article class="card stat-card">
+        <h2 class="stat-num">{{ counts.audit_log }}</h2>
+        <p class="stat-label">Audit log rows</p>
+      </article>
+      <article class="card stat-card">
+        <h2 class="stat-num">{{ cpu_count }}</h2>
+        <p class="stat-label">CPU cores</p>
+      </article>
+    </div>
+
+    <article class="card">
+      <h3 class="h3">CPU</h3>
+      <dl class="meta-grid">
+        <dt>Model</dt><dd>{{ cpu_model }}</dd>
+        <dt>Cores</dt><dd>{{ cpu_count }}</dd>
+        <dt>Load average</dt>
+        <dd>
+          {{ '%.2f' | format(load1) }} (1m) &middot;
+          {{ '%.2f' | format(load5) }} (5m) &middot;
+          {{ '%.2f' | format(load15) }} (15m)
+        </dd>
+        <dt>Pressure</dt>
+        <dd>
+          {% set pct = (load1 / cpu_count * 100) | round(0) %}
+          {% if pct > 100 %}{% set pct = 100 %}{% endif %}
+          <div class="progress-bar" data-percent="{{ pct }}" aria-label="CPU load 1m">
+            <span class="progress-fill"></span>
+          </div>
+          <span class="muted small">~{{ pct }}% of one minute load capacity</span>
+        </dd>
+      </dl>
+    </article>
+
+    <article class="card">
+      <h3 class="h3">Memory</h3>
+      {% if mem.get("MemTotal") %}
+        <dl class="meta-grid">
+          <dt>Total</dt><dd>{{ fmt_bytes(mem.MemTotal) }}</dd>
+          <dt>Used</dt><dd>{{ fmt_bytes(mem.used) }} ({{ mem.percent }}%)</dd>
+          <dt>Available</dt><dd>{{ fmt_bytes(mem.MemAvailable) }}</dd>
+          <dt>Pressure</dt>
+          <dd>
+            <div class="progress-bar" data-percent="{{ mem.percent }}" aria-label="Memory used">
+              <span class="progress-fill"></span>
+            </div>
+          </dd>
+        </dl>
+      {% else %}
+        <p class="muted">/proc/meminfo unavailable on this host.</p>
+      {% endif %}
+    </article>
+
+    <article class="card">
+      <h3 class="h3">Disk</h3>
+      {% if disk %}
+        <dl class="meta-grid">
+          <dt>Total</dt><dd>{{ fmt_bytes(disk.total) }}</dd>
+          <dt>Used</dt><dd>{{ fmt_bytes(disk.used) }} ({{ disk.percent }}%)</dd>
+          <dt>Free</dt><dd>{{ fmt_bytes(disk.free) }}</dd>
+          <dt>Pressure</dt>
+          <dd>
+            <div class="progress-bar" data-percent="{{ disk.percent }}" aria-label="Disk used">
+              <span class="progress-fill"></span>
+            </div>
+          </dd>
+        </dl>
+      {% else %}
+        <p class="muted">Could not determine disk usage.</p>
+      {% endif %}
+    </article>
+
+    <article class="card">
+      <h3 class="h3">Application directories</h3>
+      <dl class="meta-grid">
+        <dt>Uploads</dt><dd>{{ fmt_bytes(app_sizes.uploads) }}</dd>
+        <dt>Database / instance</dt><dd>{{ fmt_bytes(app_sizes.instance) }}</dd>
+        <dt>Logs</dt><dd>{{ fmt_bytes(app_sizes.logs) }}</dd>
+      </dl>
+    </article>
+
+    <article class="card">
+      <h3 class="h3">Uptime</h3>
+      {% set days = uptime_seconds // 86400 %}
+      {% set hours = (uptime_seconds % 86400) // 3600 %}
+      {% set mins = (uptime_seconds % 3600) // 60 %}
+      <p>{{ days }} d {{ hours }} h {{ mins }} m</p>
+    </article>
+
+      <h3 class="h3" style="margin-top:1.5rem;">Conversion daemon</h3>
+      <div class="card" style="padding:1rem 1.25rem; margin-bottom:1rem;">
+        {% if convert_status.running %}
+        <p style="margin:0; color:#22c55e; font-weight:600;">
+          &#x2713; Running — {{ convert_status.detail }}
+        </p>
+        {% else %}
+        <p style="margin:0; color:var(--danger); font-weight:600;">
+          &#x2717; Not responding — {{ convert_status.detail }}
+        </p>
+        <p class="muted small" style="margin:0.5rem 0 0;">
+          systemd: <code>{{ convert_status.systemd }}</code><br>
+          Run: <code>systemctl status prompt-a-thon-convert</code> and
+          <code>journalctl -u prompt-a-thon-convert -n 50</code> to diagnose.
+        </p>
+        {% endif %}
+        <p class="muted small" style="margin:0.5rem 0 0;">
+          systemd state: <code>{{ convert_status.systemd }}</code>
+        </p>
+      </div>
+
+      <h3 class="h3" style="margin-top:1.5rem;">Application log</h3>
+      <form method="get" style="display:flex;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap;">
+        <input type="search" name="log_filter" value="{{ log_filter }}"
+               placeholder="Filter (e.g. ERROR, cascade, LO, libreoffice)&hellip;"
+               style="flex:1;min-width:200px;" autocomplete="off">
+        <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+        {% if log_filter %}
+        <a href="{{ url_for('admin.server_status') }}" class="btn btn-ghost btn-sm">Clear</a>
+        {% endif %}
+      </form>
+      <p class="muted small" style="margin-bottom:0.5rem;">
+        Last 200 lines of <code>{{ log_path }}</code>, newest first.
+        {% if log_filter %}Filtered to lines containing &ldquo;{{ log_filter }}&rdquo;.{% endif %}
+      </p>
+      <div style="background:var(--bg-softer);border:1px solid var(--border);border-radius:var(--radius);
+                  padding:0.75rem 1rem;font-family:var(--font-mono);font-size:0.78rem;line-height:1.5;
+                  max-height:520px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;">
+        {%- if log_lines %}
+          {%- for line in log_lines %}
+            {%- set lc = line | lower %}
+            {%- if 'error' in lc or 'exception' in lc or 'traceback' in lc %}
+<span style="color:var(--danger);">{{ line }}</span>
+            {%- elif 'warning' in lc or 'warn' in lc or 'failed' in lc %}
+<span style="color:var(--warning);">{{ line }}</span>
+            {%- elif 'succeeded' in lc or 'clean file' in lc or 'converted via' in lc %}
+<span style="color:#22c55e;">{{ line }}</span>
+            {%- else %}
+{{ line }}
+            {%- endif %}
+          {%- endfor %}
+        {%- else %}
+<span class="muted">No log entries found{% if log_filter %} matching &ldquo;{{ log_filter }}&rdquo;{% endif %}.</span>
+        {%- endif %}
+      </div>
+
+      </div>
+    </div>
+  </div>
+
+</section>
+{% endblock %}

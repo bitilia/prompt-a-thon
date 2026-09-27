@@ -1,0 +1,15 @@
+[Unit]
+Description=prompt-a-thon competition maintenance jobs
+After=network.target
+
+[Service]
+Type=oneshot
+User=promptathon
+Group=promptathon
+WorkingDirectory=/opt/prompt-a-thon
+EnvironmentFile=/opt/prompt-a-thon/.env
+Environment=FLASK_APP=app:create_app
+ExecStart=/opt/prompt-a-thon/venv/bin/flask purge-expired-otps
+ExecStart=/opt/prompt-a-thon/venv/bin/flask fail-stuck-submissions
+ExecStart=/opt/prompt-a-thon/venv/bin/flask purge-unverified-users
+ExecStart=/opt/prompt-a-thon/venv/bin/flask purge-audit-log

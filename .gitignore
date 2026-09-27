@@ -1,0 +1,24 @@
+# Runtime / secrets
+.env
+venv/
+.venv/
+instance/
+uploads/
+logs/
+__pycache__/
+*.py[cod]
+*.sock
+*.db
+*.db-*
+
+# Packaging artefacts
+*.zip
+dist/
+build/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+.pytest_cache/

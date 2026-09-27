@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% set active_dashboard_tab = 'submissions' %}
+{% block title %}
+  {% if submission.status == 'processing' %}Processing submission{% elif submission.status == 'failed' %}Processing failed{% else %}Submission received{% endif %}
+  &middot; {{ APP_NAME }}
+{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container narrow">
+    {% include "dashboard/_nav.html" %}
+
+    {% if submission.status == 'processing' %}
+    <article class="card success-message" id="processing-card">
+      <header>
+        <h1>Processing your submission&hellip;</h1>
+        <p class="muted">
+          <strong>{{ submission.title }}</strong> &middot; submitted
+          <time datetime="{{ submission.submitted_at.isoformat() }}Z">
+            {{ submission.submitted_at | long_date }}
+          </time>
+        </p>
+      </header>
+      <div class="message-body">
+        <p>Your file has been uploaded and is being processed. It is safe to close this page.</p>
+        <p class="muted small">This page will update automatically when processing is complete, or check <a href="{{ url_for('participant.submissions') }}">My submissions</a> to see the status.</p>
+      </div>
+      <div id="processing-error" class="alert alert-error" style="display:none; margin-top:1rem;"></div>
+    </article>
+
+    {% elif submission.status == 'failed' %}
+    <article class="card success-message">
+      <header>
+        <h1>Processing failed</h1>
+        <p class="muted">
+          <strong>{{ submission.title }}</strong> &middot; submitted
+          <time datetime="{{ submission.submitted_at.isoformat() }}Z">
+            {{ submission.submitted_at | long_date }}
+          </time>
+        </p>
+      </header>
+      <div class="message-body">
+        <p>Your submission could not be processed. Please try again with a different file, or export your document as PDF from Word before uploading.</p>
+        <p class="muted small">If the problem persists, please contact the organisers.</p>
+      </div>
+      <div class="form-actions">
+        <a class="btn btn-primary" href="{{ url_for('participant.submit') }}">Try again</a>
+        <a class="btn btn-ghost" href="{{ url_for('participant.submissions') }}">View my submissions</a>
+      </div>
+    </article>
+
+    {% else %}
+    <article class="card success-message">
+      <header>
+        <h1>Submission received</h1>
+        <p class="muted">
+          <strong>{{ submission.title }}</strong> &middot; submitted
+          <time datetime="{{ submission.submitted_at.isoformat() }}Z">
+            {{ submission.submitted_at | long_date }}
+          </time>
+        </p>
+      </header>
+      <div class="message-body">
+        {{ message_md | md_to_html }}
+      </div>
+      <div class="form-actions">
+        <a class="btn btn-primary" href="{{ url_for('participant.submissions') }}">View my submissions</a>
+        <a class="btn btn-ghost" href="{{ url_for('participant.submit') }}">Submit again</a>
+      </div>
+    </article>
+    {% endif %}
+
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{% if submission.status == 'processing' %}
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var POLL_URL  = "{{ url_for('participant.upload_status', anon_id=submission.anonymous_id) }}";
+  var POLL_MS   = 3000;
+  var MAX_MS    = 300000;
+  var elapsed   = 0;
+  var errDiv    = document.getElementById("processing-error");
+
+  function poll() {
+    if (elapsed >= MAX_MS) {
+      if (errDiv) {
+        errDiv.textContent = "Processing is taking longer than expected. Please check back later or contact the organisers.";
+        errDiv.style.display = "block";
+      }
+      return;
+    }
+    fetch(POLL_URL, { headers: { "Accept": "application/json" } })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(data) {
+        if (!data) { schedule(); return; }
+        if (data.status === "done") {
+          window.location.href = data.redirect;
+        } else if (data.status === "error") {
+          if (errDiv) {
+            errDiv.textContent = data.message || "Processing failed. Please try again.";
+            errDiv.style.display = "block";
+          }
+
+          setTimeout(function() { window.location.reload(); }, 3000);
+        } else {
+          schedule();
+        }
+      })
+      .catch(function() { schedule(); });
+  }
+
+  function schedule() {
+    elapsed += POLL_MS;
+    setTimeout(poll, POLL_MS);
+  }
+
+  setTimeout(poll, POLL_MS);
+})();
+</script>
+{% endif %}
+{% endblock %}

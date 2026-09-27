@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% set active_admin_tab = 'criteria_view' %}
+{% block title %}{{ criteria.title or 'Mark Scheme' }} — {{ APP_NAME }}{% endblock %}
+
+{% block head_extra %}
+<style>
+.ms-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 2rem;
+}
+.ms-table th {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  padding: 0.55rem 0.9rem;
+  text-align: left;
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.ms-table td {
+  border: 1px solid var(--border);
+  padding: 0.65rem 0.9rem;
+  vertical-align: top;
+}
+.ms-table .ms-name { font-weight: 600; font-size: 1rem; white-space: nowrap; }
+.ms-table .ms-marks {
+  text-align: center;
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--primary);
+  width: 7rem;
+}
+.ms-table tfoot td {
+  background: var(--bg-soft);
+  font-weight: 700;
+  font-size: 1rem;
+}
+.ms-total-label { text-align: right; color: var(--text-muted); }
+.ms-total-val { text-align: center; font-size: 1.15rem; color: var(--primary); }
+
+.ms-detail { margin-bottom: 1.5rem; }
+.ms-detail:last-child { margin-bottom: 0; }
+.ms-detail-head {
+  display: flex; align-items: baseline; gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--primary-light);
+}
+.ms-detail-head h3 { margin: 0; font-size: 1.05rem; }
+.ms-detail-badge {
+  font-size: 0.82rem; font-weight: 700;
+  color: var(--primary); background: var(--primary-light);
+  padding: 0.2rem 0.6rem; border-radius: 999px;
+  white-space: nowrap;
+}
+
+.md-body { font-size: 0.93rem; line-height: 1.65; }
+.md-body p  { margin: 0 0 0.7em; }
+.md-body p:last-child { margin-bottom: 0; }
+.md-body h1,.md-body h2,.md-body h3,.md-body h4 { margin: 0.9em 0 0.4em; }
+.md-body ul,.md-body ol { margin: 0 0 0.7em; padding-left: 1.4rem; }
+.md-body li { margin-bottom: 0.2em; }
+.md-body blockquote {
+  margin: 0.5em 0; padding: 0.4em 0.9em;
+  border-left: 3px solid var(--border-strong); color: var(--text-muted);
+}
+.md-body code {
+  background: var(--bg-softer); padding: 0.1em 0.35em;
+  border-radius: 4px; font-size: 0.88em;
+}
+.md-body table { width: 100%; border-collapse: collapse; margin: 0.6em 0; font-size: 0.9rem; }
+.md-body th {
+  background: var(--bg-soft); border: 1px solid var(--border);
+  padding: 0.4rem 0.7rem; text-align: left; font-weight: 600;
+}
+.md-body td {
+  border: 1px solid var(--border); padding: 0.4rem 0.7rem; vertical-align: top;
+}
+.md-body tbody tr:nth-child(even) td { background: var(--bg-soft); }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section admin-page">
+  <div class="container admin-container">
+    <div class="admin-layout">
+      {% include "admin/_sidebar.html" %}
+      <div class="admin-main">
+
+        <header class="section-head">
+          <h1>{{ criteria.title or 'Mark Scheme' }}</h1>
+          <p class="lead">{% if current_user.is_admin %}<a href="{{ url_for('admin.criteria_config') }}">Edit JSON →</a>{% endif %}</p>
+        </header>
+
+        {% set rows = criteria.criteria if criteria.criteria is defined else [] %}
+
+        {% if rows %}
+
+        <div class="card" style="padding:1.25rem; margin-bottom:1.5rem;">
+          <table class="ms-table">
+            <thead>
+              <tr>
+                <th>Criterion</th>
+                <th style="text-align:center;">Marks</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+              <tr>
+                <td class="ms-name">{{ row.name }}</td>
+                <td class="ms-marks">{{ row.marks }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td class="ms-total-label">Total</td>
+                <td class="ms-total-val">20</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        {% for row in rows %}
+        {% if row.body %}
+        <div class="card ms-detail">
+          <div class="ms-detail-head">
+            <h3>{{ row.name }}</h3>
+            <span class="ms-detail-badge">{{ row.marks }} marks</span>
+          </div>
+          <div class="md-body">
+            {{ row.body | markdown | safe }}
+          </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+
+        {% else %}
+        <div class="card empty-state">
+          <p class="muted">No criteria defined yet.</p>
+          {% if current_user.is_admin %}
+          <a href="{{ url_for('admin.criteria_config') }}" class="btn btn-primary" style="margin-top:0.75rem;">Edit mark scheme</a>
+          {% endif %}
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

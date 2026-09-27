@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Privacy policy &middot; {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container narrow legal">
+    <header class="section-head">
+      <h1>Privacy policy</h1>
+      <p class="muted">Starter notice for a self-hosted install. Edit this page before a real event.</p>
+    </header>
+
+    <article class="card">
+      <h2>1. Who runs this site</h2>
+      <p>
+        This site is hosted at
+        {% if SITE_DOMAIN %}<code>{{ SITE_DOMAIN }}</code>{% else %}this domain{% endif %}
+        by whoever installed this copy of {{ APP_NAME }}. In a default install that
+        operator is {{ COLLEGE_NAME }}. They hold the database, the uploaded files,
+        and the server. There is no separate vendor operating the site for them.
+      </p>
+      <p>
+        Questions about this notice or your data should be directed to
+        {% if CONTACT_EMAIL %}<a href="mailto:{{ CONTACT_EMAIL }}">{{ CONTACT_EMAIL }}</a>{% else %}the event organisers{% endif %}.
+      </p>
+
+      <h2>2. What we collect</h2>
+      <ul>
+        <li><strong>Account data:</strong> your email address (required) and optional display name.</li>
+        <li><strong>Authentication data:</strong> hashes of one-time codes (never the codes themselves) and, if you sign in with Microsoft, your Microsoft object ID.</li>
+        <li><strong>Submissions:</strong> the title, written content, optional file uploads and metadata for entries you submit. Document metadata (author, last-modified-by, embedded thumbnails) is stripped from uploads on receipt.</li>
+        <li><strong>Progress:</strong> which Academy items you have marked complete, and which task you have submitted for.</li>
+        <li><strong>Audit log:</strong> selected actions, with an IP address. The installer keeps these for 365 days unless an admin changes <code>AUDIT_LOG_RETENTION_DAYS</code>.</li>
+        <li><strong>Connection log:</strong> at most one row per IP every 30 seconds (address, optional country header, path). Rows older than 48 hours are deleted.</li>
+        <li><strong>Email log:</strong> recipient, subject, HTML body, and, if the message includes a tracking image, the time that image was fetched. Fetching the image is not proof the message was read.</li>
+      </ul>
+
+      <h2>3. Lawful bases</h2>
+      <p>
+        We rely on <strong>contract</strong> (running the competition you have entered),
+        <strong>legitimate interests</strong> (security, fraud prevention, audit) and
+        <strong>consent</strong> (any optional cookies or analytics, where applicable).
+      </p>
+
+      <h2>4. How long we keep it</h2>
+      <ul>
+        <li>Account data and submissions: for the duration of the event and a reasonable archive period afterwards, or until you request erasure.</li>
+        <li>Audit logs: 365 days on a default install, or whatever <code>AUDIT_LOG_RETENTION_DAYS</code> is set to.</li>
+        <li>One-time codes: they expire within minutes. Expired and used codes are deleted about every 15 minutes.</li>
+        <li>Connection log: 48 hours.</li>
+        <li>Cookies: session cookies last for the browser session; the CSRF cookie persists per session.</li>
+      </ul>
+
+      <h2>5. Encryption and security</h2>
+      <p>
+        Submission text, judge notes, ban reasons, audit detail, and stored email HTML
+        are encrypted at rest with Fernet (AES-128-CBC and HMAC-SHA256), using a key
+        derived from the server secret. Uploaded files on disk are not encrypted.
+        Email addresses and names are stored in plaintext so organisers can search them.
+        Sign-in codes are stored only as SHA-256 hashes and compared in constant time.
+        TLS is the reverse proxy's job. This application listens on loopback and does
+        not terminate TLS itself.
+      </p>
+
+      <h2>6. Cookies</h2>
+      <p>
+        We set a session cookie (so you stay signed in) and a CSRF cookie (to prevent
+        cross-site request forgery). Both are essential and use <code>SameSite=Lax</code>,
+        <code>Secure</code> and <code>HttpOnly</code> flags where applicable. We do not run
+        third-party advertising or tracking scripts. Embedded videos use YouTube's
+        privacy-enhanced (no-cookie) domain.
+      </p>
+
+      <h2>7. Email delivery</h2>
+      <p>
+        One-time sign-in codes and notification emails are sent through one of the
+        following, configured by the operator of this site: a <strong>third-party
+        transactional mail provider</strong> (such as Brevo, Postmark, SendGrid, or Amazon
+        SES) reached over their HTTPS API or SMTP, OR a <strong>self-hosted SMTP server
+        operated by this site's owners</strong>. The email content is limited to your
+        sign-in code or the body of an organiser notification. Whichever path is in use,
+        the transactional provider may process delivery metadata (sender, recipient,
+        timestamps) on its own infrastructure under its own privacy policy.
+      </p>
+
+      <h2>8. Sharing</h2>
+      <p>
+        The operator does not sell personal data through this software. Data stays on
+        the operator's server, except where the operator has configured an email
+        provider (section 7) or a participant chooses Microsoft sign-in. Judges and
+        admins of this install can read submissions in order to score them.
+      </p>
+
+      <h2>9. Your rights</h2>
+      <p>Under UK GDPR you have the right to:</p>
+      <ul>
+        <li>request a copy of the data we hold about you (access);</li>
+        <li>have inaccurate data corrected (rectification);</li>
+        <li>have your data deleted (erasure);</li>
+        <li>receive a portable copy of your data (portability);</li>
+        <li>object to processing or restrict it;</li>
+        <li>withdraw consent at any time.</li>
+      </ul>
+      <p>
+        Exercise any of these rights via our
+        <a href="{{ url_for('gdpr.data_request') }}">data request form</a>.
+        We will respond within 30 days.
+      </p>
+
+      <h2>10. Complaints</h2>
+      <p>
+        If you believe we have mishandled your data you may complain to the UK
+        Information Commissioner's Office at
+        <a href="https://ico.org.uk/" target="_blank" rel="noopener noreferrer">ico.org.uk</a>.
+      </p>
+
+      <h2>11. Changes</h2>
+      <p>
+        We will update this notice if our processing changes. Material changes will be
+        announced on the site or by email.
+      </p>
+    </article>
+  </div>
+</section>
+{% endblock %}

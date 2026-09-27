@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% set active_admin_tab = 'criteria_config' %}
+{% block title %}Criteria JSON — Admin — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<section class="section admin-page">
+  <div class="container admin-container">
+    <div class="admin-layout">
+      {% include "admin/_sidebar.html" %}
+      <div class="admin-main">
+        <header class="section-head">
+          <h1>Mark Scheme</h1>
+          <p class="lead">Edit the marking criteria judges will use. Each section's <code>body</code> field supports full Markdown including tables.</p>
+        </header>
+
+        {% if error %}
+        <div class="card alert alert-error" style="margin-bottom:1rem;">
+          <strong>Validation error:</strong>
+          <pre class="content-pre" style="margin-top:0.5rem;">{{ error }}</pre>
+        </div>
+        {% endif %}
+
+        <div style="display:flex; gap:0.75rem; margin-bottom:1rem; flex-wrap:wrap; align-items:center;">
+          <a href="{{ url_for('admin.criteria_view') }}" class="btn btn-ghost btn-sm">Preview rendered view →</a>
+        </div>
+
+        <form method="post" class="card form-card js-json-form" novalidate>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="field">
+            <label for="config">criteria.json</label>
+            <textarea id="config" name="config" rows="32" class="code-area" spellcheck="false" autocomplete="off">{{ config_text }}</textarea>
+            <small class="muted">
+              Schema: <code>{ "title": "...", "criteria": [ { "name": "...", "marks": 5, "body": "Markdown..." } ] }</code>. Total is always displayed as /20. The <code>body</code> field supports full Markdown including GFM tables.
+            </small>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save mark scheme</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

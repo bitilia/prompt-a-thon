@@ -1,0 +1,212 @@
+{# Vertical sidebar nav for admin pages #}
+{% set active = active_admin_tab|default('') %}
+
+{% set ops_tabs        = ['certificates', 'email_analytics', 'email_config'] %}
+{% set site_tabs       = ['settings', 'edit_content', 'edit_faqs', 'style_config'] %}
+{% set people_tabs     = ['users', 'staff'] %}
+{% set compliance_tabs = ['data_requests', 'audit_log', 'security'] %}
+{% set system_tabs     = ['server', 'storage', 'updates'] %}
+{% set configure_tabs  = ['criteria_config', 'tasks_config', 'academy_config'] %}
+
+{% set notif_dot = (ADMIN_NOTIF.data_requests or ADMIN_NOTIF.updates) %}
+
+<style>
+/* Critical pre-load: hide public nav before admin.css fully loads */
+.nav, .site-footer, .announcement-banner { display: none !important; }
+body { background: #0b0d12 !important; color: #e2e8f3 !important; }
+
+.sb-section {
+  font-size: .68rem; font-weight: 700; letter-spacing: .09em;
+  text-transform: uppercase; color: #4a5066;
+  padding: .55rem .75rem .15rem;
+  margin-top: .15rem;
+  user-select: none;
+}
+.sb-group { margin: 0; }
+.sb-group summary {
+  font-size: .72rem; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase; color: #5a6280;
+  padding: .35rem .75rem .2rem;
+  cursor: pointer; list-style: none;
+  display: flex; align-items: center; gap: .35rem;
+  user-select: none; border-radius: 0;
+}
+.sb-group summary::-webkit-details-marker { display: none; }
+.sb-group summary::before {
+  content: "›"; font-size: .9rem; transition: transform .15s;
+  display: inline-block; flex-shrink: 0; color: #4a5066;
+}
+.sb-group[open] summary::before { transform: rotate(90deg); }
+.sb-group-body { padding-left: .35rem; padding-bottom: .1rem; }
+</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}?v={{ ASSET_VER }}">
+<script nonce="{{ csp_nonce }}">document.body.setAttribute('data-layout','admin');</script>
+
+{# Mobile hamburger #}
+<button type="button" class="admin-menu-toggle" aria-label="Open admin menu"
+        aria-controls="admin-sidebar" aria-expanded="false">
+  <span class="amt-icon" aria-hidden="true"><span class="bar"></span><span class="bar"></span><span class="bar"></span></span>
+  <span>Admin menu</span>
+  {% if notif_dot or ADMIN_NOTIF.submissions %}<span class="notif-dot" style="margin-left:.1rem;"></span>{% endif %}
+</button>
+<div class="admin-sidebar-overlay" hidden></div>
+
+<aside id="admin-sidebar" class="admin-sidebar" aria-label="Admin sections">
+  <a href="{{ url_for('admin.index') }}" class="a-sb-header">
+    <img src="{{ url_for('static', filename='prompt-a-thon-wordmark-white.svg') }}" alt="prompt-a-thon"
+         style="height:17px;width:auto;">
+    <span class="a-sb-sep"></span>
+    <span class="a-sb-tag">Admin</span>
+  </a>
+  <h2 class="admin-sidebar-title">Admin</h2>
+
+  <nav>
+    {# ── Always-visible core ─────────────────────────────── #}
+    {% if current_user.is_admin %}
+    <a href="{{ url_for('admin.index') }}"
+       class="as-link {% if active == 'index' %}is-active{% endif %}">Overview</a>
+    {% endif %}
+
+    <a href="{{ url_for('admin.submissions') }}"
+       class="as-link {% if active == 'submissions' %}is-active{% endif %}">
+      Submissions
+      {% if ADMIN_NOTIF.submissions %}<span class="notif-dot" title="{{ ADMIN_NOTIF.submissions }} unreviewed"></span>{% endif %}
+    </a>
+
+    <a href="{{ url_for('admin.criteria_view') }}"
+       class="as-link {% if active == 'criteria_view' %}is-active{% endif %}">Mark scheme</a>
+
+    {% if current_user.is_admin %}
+
+    {# ── Operations ──────────────────────────────────────── #}
+    <details class="sb-group" {% if active in ops_tabs %}open{% endif %}>
+      <summary>Operations</summary>
+      <div class="sb-group-body">
+        <a href="{{ url_for('admin.certificates') }}"
+           class="as-link {% if active == 'certificates' %}is-active{% endif %}">Certificates</a>
+        <a href="{{ url_for('admin.email_analytics') }}"
+           class="as-link {% if active == 'email_analytics' %}is-active{% endif %}">Email analytics</a>
+        <a href="{{ url_for('admin.email_config') }}"
+           class="as-link {% if active == 'email_config' %}is-active{% endif %}">Email settings</a>
+      </div>
+    </details>
+
+    {# ── Site ────────────────────────────────────────────── #}
+    <details class="sb-group" {% if active in site_tabs %}open{% endif %}>
+      <summary>Site</summary>
+      <div class="sb-group-body">
+        <a href="{{ url_for('admin.settings') }}"
+           class="as-link {% if active == 'settings' %}is-active{% endif %}">Settings</a>
+        <a href="{{ url_for('admin.edit_content') }}"
+           class="as-link {% if active == 'edit_content' %}is-active{% endif %}">Page text</a>
+        <a href="{{ url_for('admin.edit_faqs') }}"
+           class="as-link {% if active == 'edit_faqs' %}is-active{% endif %}">FAQs</a>
+        <a href="{{ url_for('admin.config_style') }}"
+           class="as-link {% if active == 'style_config' %}is-active{% endif %}">Theme</a>
+      </div>
+    </details>
+
+    {# ── People ──────────────────────────────────────────── #}
+    <details class="sb-group" {% if active in people_tabs %}open{% endif %}>
+      <summary>People</summary>
+      <div class="sb-group-body">
+        <a href="{{ url_for('admin.users') }}"
+           class="as-link {% if active == 'users' %}is-active{% endif %}">Users</a>
+        <a href="{{ url_for('admin.staff') }}"
+           class="as-link {% if active == 'staff' %}is-active{% endif %}">Staff</a>
+      </div>
+    </details>
+
+    {# ── Compliance ──────────────────────────────────────── #}
+    <details class="sb-group" {% if active in compliance_tabs %}open{% endif %}>
+      <summary>
+        Compliance
+        {% if ADMIN_NOTIF.data_requests %}<span class="notif-dot"></span>{% endif %}
+      </summary>
+      <div class="sb-group-body">
+        <a href="{{ url_for('admin.data_requests') }}"
+           class="as-link {% if active == 'data_requests' %}is-active{% endif %}">
+          Data requests
+          {% if ADMIN_NOTIF.data_requests %}<span class="notif-dot"></span>{% endif %}
+        </a>
+        <a href="{{ url_for('admin.audit_log') }}"
+           class="as-link {% if active == 'audit_log' %}is-active{% endif %}">Audit log</a>
+        <a href="{{ url_for('admin.security') }}"
+           class="as-link {% if active == 'security' %}is-active{% endif %}">Security</a>
+      </div>
+    </details>
+
+    {# ── System ──────────────────────────────────────────── #}
+    <details class="sb-group" {% if active in system_tabs %}open{% endif %}>
+      <summary>
+        System
+        {% if ADMIN_NOTIF.updates %}<span class="notif-dot"></span>{% endif %}
+      </summary>
+      <div class="sb-group-body">
+        {# Self-update is hidden in managed/web-app mode — the platform
+           super-admin rolls out updates to every instance centrally. #}
+        {% if not MANAGED_MODE %}
+        <a href="{{ url_for('admin.updates') }}"
+           class="as-link {% if active == 'updates' %}is-active{% endif %}">
+          Updates
+          {% if ADMIN_NOTIF.updates %}<span class="notif-dot" title="A new version is available"></span>{% endif %}
+        </a>
+        {% endif %}
+        <a href="{{ url_for('admin.server_status') }}"
+           class="as-link {% if active == 'server' %}is-active{% endif %}">Server</a>
+        <a href="{{ url_for('admin.storage') }}"
+           class="as-link {% if active == 'storage' %}is-active{% endif %}">Storage</a>
+      </div>
+    </details>
+
+    {# ── Configure ───────────────────────────────────────── #}
+    <details class="sb-group" {% if active in configure_tabs %}open{% endif %}>
+      <summary>Configure</summary>
+      <div class="sb-group-body">
+        <a href="{{ url_for('admin.criteria_config') }}"
+           class="as-link {% if active == 'criteria_config' %}is-active{% endif %}">Criteria</a>
+        <a href="{{ url_for('admin.config_tasks') }}"
+           class="as-link {% if active == 'tasks_config' %}is-active{% endif %}">Tasks</a>
+        <a href="{{ url_for('admin.config_academy') }}"
+           class="as-link {% if active == 'academy_config' %}is-active{% endif %}">Academy</a>
+      </div>
+    </details>
+
+    {% endif %}{# end is_admin #}
+  </nav>
+
+  <div class="a-sb-footer">
+    <a href="{{ url_for('public.index') }}" class="a-sb-back">
+      <span aria-hidden="true">&#8592;</span> Back to site
+    </a>
+  </div>
+</aside>
+
+<script nonce="{{ csp_nonce }}">
+(function(){
+  var btn = document.querySelector('.admin-menu-toggle');
+  var sb  = document.getElementById('admin-sidebar');
+  var ov  = document.querySelector('.admin-sidebar-overlay');
+  if (!btn || !sb || !ov) return;
+  function open(){
+    sb.classList.add('is-open');
+    ov.hidden = false;
+    requestAnimationFrame(function(){ ov.classList.add('is-open'); });
+    btn.setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden';
+  }
+  function close(){
+    sb.classList.remove('is-open');
+    ov.classList.remove('is-open');
+    btn.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+    setTimeout(function(){ if (!sb.classList.contains('is-open')) ov.hidden = true; }, 250);
+  }
+  btn.addEventListener('click', function(){
+    sb.classList.contains('is-open') ? close() : open();
+  });
+  ov.addEventListener('click', close);
+  sb.addEventListener('click', function(e){ if (e.target.closest('a.as-link')) close(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') close(); });
+})();
+</script>

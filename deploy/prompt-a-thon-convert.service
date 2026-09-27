@@ -1,0 +1,27 @@
+[Unit]
+Description=prompt-a-thon DOCX→PDF conversion daemon
+After=network.target
+
+[Service]
+Type=simple
+User=promptathon-convert
+Group=promptathon-convert
+WorkingDirectory=/opt/prompt-a-thon/conversion
+Environment=CONVERSION_DIR=/opt/prompt-a-thon/conversion
+ExecStart=/opt/prompt-a-thon/conversion/venv/bin/python /opt/prompt-a-thon/conversion/convert_daemon.py
+Restart=always
+RestartSec=3
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictRealtime=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX
+ReadWritePaths=/opt/prompt-a-thon/conversion
+
+[Install]
+WantedBy=multi-user.target

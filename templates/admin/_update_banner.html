@@ -1,0 +1,37 @@
+{# Reusable admin update banner. Shown on the dashboard and the settings page.
+   Points to the Updates tab for full release list and download buttons.
+   Suppressed in managed/web-app mode — instances never self-update there. #}
+{% if not MANAGED_MODE %}
+{% set us = update_status or {} %}
+{% set inst_s = us.get('installed_status', '') %}
+{% if inst_s in ('ok', 'critically_outdated') %}
+  {% set crit   = inst_s == 'critically_outdated' %}
+  {% set color  = 'var(--a-danger,#f87171)'              if crit else 'var(--a-warn,#f59e0b)' %}
+  {% set bg     = 'var(--a-d-bg,rgba(248,113,113,.1))'   if crit else 'var(--a-w-bg,rgba(245,158,11,.1))' %}
+  {% set border = 'var(--a-d-brd,rgba(248,113,113,.24))' if crit else 'var(--a-w-brd,rgba(245,158,11,.24))' %}
+  <div id="update-banner" style="background:{{ bg }};border:1px solid {{ border }};border-radius:0;padding:.85rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+    <img src="{{ url_for('static', filename='prompt-a-thon-mark.svg') }}" alt="prompt-a-thon"
+         style="height:32px;width:auto;flex-shrink:0;opacity:.85;">
+    <div style="flex:1;min-width:0;">
+      {% if crit %}
+        <strong style="color:{{ color }};">Critical update required</strong>
+        <p style="margin:.2rem 0 0;color:{{ color }};font-size:.85rem;opacity:.85;">Your installation (v{{ us.get('installed_version','?') }}) is critically outdated and must be updated immediately.</p>
+      {% else %}
+        <strong style="color:{{ color }};">Update available</strong>
+        <p style="margin:.2rem 0 0;color:{{ color }};font-size:.85rem;opacity:.85;">A newer version is available{% if us.get('latest') %} (v{{ us.get('latest').version }}){% endif %}. Your current version (v{{ us.get('installed_version','?') }}) is still supported.</p>
+      {% endif %}
+    </div>
+    <a class="btn btn-sm" style="background:{{ color }};color:#0b0d12;border:none;flex-shrink:0;text-decoration:none;border-radius:0;font-weight:700;"
+       href="{{ url_for('admin.updates') }}">View updates</a>
+  </div>
+{% endif %}
+{% if us.get('last_check_error') %}
+  <script nonce="{{ csp_nonce }}">
+  console.warn(
+    "prompt-a-thon: could not check for the latest version" +
+    {% if us.get('checked_at') %}" (last attempt {{ us.get('checked_at') }})"{% else %}""{% endif %} + ":",
+    {{ us.get('last_check_error') | tojson }}
+  );
+  </script>
+{% endif %}
+{% endif %}{# not MANAGED_MODE #}

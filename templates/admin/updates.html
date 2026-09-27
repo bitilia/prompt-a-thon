@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% set active_admin_tab = 'updates' %}
+{% block title %}Updates — Admin — {{ APP_NAME }}{% endblock %}
+
+{% macro status_badge(s) %}
+  {% set m = {
+    'latest':             ('Latest',              '#22c55e', 'rgba(34,197,94,.12)'),
+    'ok':                 ('Update available',    '#f59e0b', 'rgba(245,158,11,.12)'),
+    'beta':               ('Beta',                '#38bdf8', 'rgba(56,189,248,.12)'),
+    'critically_outdated':('Critically outdated', '#f87171', 'rgba(248,113,113,.12)')
+  } %}
+  {% set lbl, fg, bg = m.get(s, ((s or 'Unknown')|capitalize, '#7a8399', 'rgba(255,255,255,.06)')) %}
+  <span style="display:inline-block;padding:.15rem .55rem;border-radius:0;font-size:.75rem;font-weight:600;color:{{ fg }};background:{{ bg }};white-space:nowrap;">{{ lbl }}</span>
+{% endmacro %}
+
+{% block content %}
+<section class="section admin-page">
+  <div class="container admin-container">
+    <div class="admin-layout">
+      {% include "admin/_sidebar.html" %}
+      <div class="admin-main">
+
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;padding:.85rem 1.25rem;margin-bottom:1.5rem;background:var(--a-surface-2,#161a24);border:1px solid var(--a-border,#1e2232);border-left:3px solid var(--a-accent,#f27d00);">
+          <a href="https://prompt-a-thon.bitilia.com" rel="noopener noreferrer external" style="display:flex;align-items:center;text-decoration:none;flex-shrink:0;">
+            <img src="{{ url_for('static', filename='prompt-a-thon-wordmark-white.svg') }}" alt="prompt-a-thon"
+                 style="height:16px;width:auto;display:block;">
+          </a>
+          <span style="font-size:.77rem;color:var(--a-text-2,#7a8399);">
+            Project site
+            <a href="https://prompt-a-thon.bitilia.com" rel="noopener noreferrer external" style="color:var(--a-accent,#f27d00);font-weight:600;text-decoration:none;">prompt-a-thon</a>
+            &middot;
+            <a href="https://prompt-a-thon.bitilia.com" rel="noopener noreferrer external" style="color:var(--a-accent,#f27d00);text-decoration:none;">prompt-a-thon.bitilia.com</a>
+          </span>
+        </div>
+
+        <header class="section-head">
+          <h1>Updates</h1>
+          <p class="lead">Compare the installed version with a manifest you configure. This server does not download or run update files.</p>
+        </header>
+
+        <div class="card" style="margin-bottom:1.25rem;">
+          <h2 class="h3" style="margin-top:0;">Current installation</h2>
+          <p style="margin:.25rem 0;">Installed: <strong>v{{ installed_version }}</strong> {{ status_badge(installed_status) }}</p>
+          {% if latest %}
+            {% if installed_status == 'latest' %}
+              <p class="muted" style="margin:.5rem 0 0;">You're running the latest release — nothing to do.</p>
+            {% else %}
+              <p style="margin:.5rem 0;">Latest release: <strong>v{{ latest.version }}</strong> {{ status_badge(latest.status) }}</p>
+              <p class="muted" style="margin:.5rem 0 0;">Upgrade by installing a new release yourself. This page does not fetch or run it.</p>
+              <a class="btn btn-primary" href="https://prompt-a-thon.bitilia.com" rel="noopener noreferrer external">Project site</a>
+            {% endif %}
+          {% else %}
+            <p class="muted" style="margin:.5rem 0 0;">No release information available{% if last_check_error %} — the last update check failed (see browser console){% endif %}.</p>
+          {% endif %}
+          {% if checked_at %}<p class="muted small" style="margin:.75rem 0 0;">Last checked: <time datetime="{{ checked_at }}Z">{{ checked_at }}Z</time></p>{% endif %}
+        </div>
+
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div style="overflow-x:auto;">
+            <table class="data-table" style="min-width:560px;">
+              <thead>
+                <tr>
+                  <th style="min-width:120px;">Version</th>
+                  <th style="min-width:150px;">Status</th>
+                  <th style="min-width:200px;white-space:normal;">Notes</th>
+                  <th style="min-width:150px;">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in releases %}
+                  {% set v = r.version %}
+                  <tr>
+                    <td><strong>v{{ v }}</strong>{% if v == installed_version %} <span class="muted small">(installed)</span>{% endif %}</td>
+                    <td>{{ status_badge(r.status) }}</td>
+                    <td class="muted small" style="white-space:normal;">{{ r.notes or r.date or '—' }}</td>
+                    <td class="muted small">Manual upgrade</td>
+                  </tr>
+                {% else %}
+                  <tr><td colspan="4" class="muted" style="padding:1rem;">No releases found{% if last_check_error %} — the update check failed (see browser console){% endif %}.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" style="display:none">
+      </div>
+    </div>
+  </div>
+</section>
+{% if last_check_error %}
+<script nonce="{{ csp_nonce }}">
+console.warn("prompt-a-thon: could not check for the latest version:", {{ last_check_error | tojson }});
+(function(){
+  var INTERVAL = 15 * 60 * 1000;
+  var csrf = document.querySelector('input[name=csrf_token]');
+  function poll(){
+    fetch({{ url_for('admin.recheck_updates') | tojson }}, {
+      method: 'POST',
+      headers: {'X-CSRFToken': csrf ? csrf.value : ''}
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.ok && !d.has_error) {
+        window.location.reload();
+      } else {
+        if (d.error) console.warn("prompt-a-thon: update recheck failed:", d.error);
+        setTimeout(poll, INTERVAL);
+      }
+    })
+    .catch(function(err){
+      console.warn("prompt-a-thon: update recheck network error:", err);
+      setTimeout(poll, INTERVAL);
+    });
+  }
+  setTimeout(poll, INTERVAL);
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% set active_admin_tab = 'data_requests' %}
+{% block title %}GDPR Auto-resolve #{{ req.id }} — Admin — {{ APP_NAME }}{% endblock %}
+
+{% block head_extra %}
+<style>
+.preview-box {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  max-height: 480px;
+  overflow-y: auto;
+}
+.gdpr-meta dt { font-weight: 600; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.gdpr-meta dd { margin: 0 0 0.5rem; }
+.del-list { margin: 0.5rem 0 0; padding-left: 1.2rem; }
+.del-list li { margin-bottom: 0.25rem; font-size: 0.92rem; }
+.del-list li strong { color: var(--danger); }
+.erasure-warn {
+  background: #450a0a;
+  border: 1px solid #7f1d1d;
+  color: #f87171;
+  border-radius: var(--radius);
+  padding: 0.9rem 1.1rem;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+[data-theme="light"] .erasure-warn {
+  background: #fff5f5;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+.action-bar {
+  display: flex; gap: 0.65rem; flex-wrap: wrap; align-items: center;
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+.pii-preview-wrap { position: relative; }
+.pii-preview-mask {
+  display: none;
+  position: absolute; inset: 0;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.5rem;
+  color: var(--text-muted);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section admin-page">
+  <div class="container admin-container">
+    <div class="admin-layout">
+      {% include "admin/_sidebar.html" %}
+      <div class="admin-main">
+
+        <header class="section-head">
+          <h1>GDPR Auto-resolve — Request #{{ req.id }}</h1>
+          <p><a href="{{ url_for('admin.data_requests') }}" class="btn btn-ghost btn-sm">← Back to requests</a></p>
+        </header>
+
+        <div class="card" style="margin-bottom:1.25rem;">
+          <dl class="gdpr-meta meta-grid">
+            <dt>Request type</dt><dd><strong>{{ req.request_type_label }}</strong></dd>
+            <dt>Email</dt><dd><code class="pii-email">{{ req.email }}</code></dd>
+            <dt>Received</dt><dd>{{ req.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd>
+            <dt>Detail</dt><dd>{{ req.detail or '(none)' }}</dd>
+            {% if user %}
+            <dt>Account</dt><dd>Found — <code class="pii-email">{{ user.email }}</code> (user #{{ user.id }})</dd>
+            {% else %}
+            <dt>Account</dt><dd class="muted">No account found for this email address.</dd>
+            {% endif %}
+          </dl>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for cat, msg in messages %}
+            <div class="alert alert-{{ cat }}" style="margin-bottom:1rem;">{{ msg }}</div>
+          {% endfor %}
+        {% endwith %}
+
+        {% if rtype == 'access' %}
+          {% if no_account %}
+            <div class="card">
+              <p class="muted">No account exists for <code>{{ req.email }}</code>. You can still mark the request resolved.</p>
+              <form method="post" action="{{ url_for('admin.data_request_auto_resolve', req_id=req.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="action-bar">
+                  <button type="submit" class="btn btn-primary">Mark resolved (no data)</button>
+                  <a href="{{ url_for('admin.data_requests') }}" class="btn btn-ghost">Nevermind</a>
+                </div>
+              </form>
+            </div>
+          {% else %}
+            <div class="card">
+              <h3 style="margin-top:0;">Email preview</h3>
+              <p class="muted small">This is the email that will be sent to <code class="pii-email">{{ req.email }}</code>:</p>
+              <p><strong>Subject:</strong> {{ email_subject }}</p>
+              <div class="pii-preview-wrap">
+                <div class="preview-box pii-preview-content">{{ email_body }}</div>
+                <div class="pii-preview-mask">
+                  <span style="font-size:1.5rem;">&#x2731;&#x2731;&#x2731;</span>
+                  <span style="font-size:0.88rem; font-weight:600;">Turn off PII Hidden to view email content</span>
+                </div>
+              </div>
+              <form method="post" action="{{ url_for('admin.data_request_auto_resolve', req_id=req.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="action-bar">
+                  <button type="submit" class="btn btn-primary">Send email &amp; resolve</button>
+                  <a href="{{ url_for('admin.data_requests') }}" class="btn btn-ghost">Nevermind</a>
+                </div>
+              </form>
+            </div>
+          {% endif %}
+
+        {% elif rtype == 'erasure' %}
+          {% if no_account %}
+            <div class="card">
+              <p class="muted">No account exists for <code>{{ req.email }}</code>. You can still mark the request resolved.</p>
+              <form method="post" action="{{ url_for('admin.data_request_auto_resolve', req_id=req.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="confirm_erasure" value="confirmed">
+                <div class="action-bar">
+                  <button type="submit" class="btn btn-primary">Mark resolved (no data)</button>
+                  <a href="{{ url_for('admin.data_requests') }}" class="btn btn-ghost">Nevermind</a>
+                </div>
+              </form>
+            </div>
+          {% else %}
+            {% set info = erasure_info %}
+            <div class="erasure-warn">
+              &#x26A0; <strong>Irreversible action.</strong> The following will be permanently deleted from the database. There is no undo.
+            </div>
+            <div class="card">
+              <h3 style="margin-top:0;">Deletion preview</h3>
+              <ul class="del-list">
+                <li>User record — <code class="pii-email">{{ info.user.email }}</code> (ID #{{ info.user.id }}) — <strong>DELETED</strong></li>
+                <li>{{ info.submissions | length }} submission(s) — <strong>DELETED</strong>
+                  {% if info.submissions %}
+                  <ul>
+                    {% for s in info.submissions %}
+                    <li>#{{ s.id }} "{{ s.title }}" ({{ s.status_label }}{% if s.filename %}, file: {{ s.filename }}{% endif %})</li>
+                    {% endfor %}
+                  </ul>
+                  {% endif %}
+                </li>
+                <li>{{ info.academy_count }} academy progress record(s) — <strong>DELETED</strong></li>
+                <li>{{ info.otp_count }} active OTP token(s) — <strong>DELETED</strong></li>
+                <li>{{ info.consent_count }} consent record(s) — user_id set to NULL (retained for legal audit)</li>
+                <li>{{ info.data_request_count }} data request record(s) — user_id set to NULL (retained for legal audit)</li>
+              </ul>
+              {% if info.submissions %}
+              <p class="muted small" style="margin-top:0.75rem;">
+                Note: uploaded files associated with submissions will remain on disk until manually purged.
+              </p>
+              {% endif %}
+              <form method="post" action="{{ url_for('admin.data_request_auto_resolve', req_id=req.id) }}"
+                    onsubmit="return confirm('This will permanently delete the user and all their data. Are you absolutely sure?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="confirm_erasure" value="confirmed">
+                <div class="action-bar">
+                  <button type="submit" class="btn btn-danger">Delete all data &amp; resolve</button>
+                  <a href="{{ url_for('admin.data_requests') }}" class="btn btn-ghost">Nevermind</a>
+                </div>
+              </form>
+            </div>
+          {% endif %}
+
+        {% elif rtype == 'portability' %}
+          {% if no_account %}
+            <div class="card">
+              <p class="muted">No account exists for <code>{{ req.email }}</code>. You can still mark the request resolved.</p>
+              <form method="post" action="{{ url_for('admin.data_request_auto_resolve', req_id=req.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="action-bar">
+                  <button type="submit" class="btn btn-primary">Mark resolved (no data)</button>
+                  <a href="{{ url_for('admin.data_requests') }}" class="btn btn-ghost">Nevermind</a>
+                </div>
+              </form>
+            </div>
+          {% else %}
+            <div class="card">
+              <h3 style="margin-top:0;">Data export (CSV)</h3>
+              <p class="muted small">Copy the CSV below, save it as a <code>.csv</code> file, then use the mailto link to open a pre-addressed email — attach the file and send.</p>
+              <div class="pii-preview-wrap">
+                <div class="preview-box pii-preview-content">{{ csv_text }}</div>
+                <div class="pii-preview-mask">
+                  <span style="font-size:1.5rem;">&#x2731;&#x2731;&#x2731;</span>
+                  <span style="font-size:0.88rem; font-weight:600;">Turn off PII Hidden to view export data</span>
+                </div>
+              </div>
+              <div class="action-bar" style="border-top:none; padding-top:0; margin-top:0.75rem;">
+                <a href="{{ mailto_link }}" class="btn btn-primary">Open email draft in mail client</a>
+              </div>
+              <p class="muted small" style="margin-top:0.75rem;">
+                After sending, click <strong>Mark resolved</strong> below. The system does not send files via API.
+              </p>
+              <form method="post" action="{{ url_for('admin.data_request_auto_resolve', req_id=req.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="action-bar">
+                  <button type="submit" class="btn btn-secondary">Mark resolved (after sending)</button>
+                  <a href="{{ url_for('admin.data_requests') }}" class="btn btn-ghost">Nevermind</a>
+                </div>
+              </form>
+            </div>
+          {% endif %}
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var STORAGE_KEY = 'pii_hidden';
+  var masks = document.querySelectorAll('.pii-preview-mask');
+  var previews = document.querySelectorAll('.pii-preview-content');
+
+  function isHidden() {
+    try { return localStorage.getItem(STORAGE_KEY) === '1'; } catch(e) { return false; }
+  }
+
+  function applyPiiState(hidden) {
+    masks.forEach(function(m) { m.style.display = hidden ? 'flex' : 'none'; });
+    previews.forEach(function(p) { p.style.visibility = hidden ? 'hidden' : 'visible'; });
+  }
+
+  applyPiiState(isHidden());
+
+  window.addEventListener('storage', function(e) {
+    if (e.key === STORAGE_KEY) applyPiiState(isHidden());
+  });
+
+  var btn = document.getElementById('pii-toggle-btn');
+  if (btn) {
+    btn.addEventListener('click', function () {
+      setTimeout(function() { applyPiiState(isHidden()); }, 0);
+    });
+  }
+})();
+</script>
+{% endblock %}

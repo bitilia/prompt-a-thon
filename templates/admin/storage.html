@@ -1,0 +1,330 @@
+{% extends "base.html" %}
+{% set active_admin_tab = 'storage' %}
+{% block title %}Storage — Admin — {{ APP_NAME }}{% endblock %}
+
+{% block head_extra %}
+<style>
+.storage-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: 1rem;
+}
+.storage-label { font-weight: 600; font-size: 1rem; margin: 0 0 0.25rem; }
+.storage-meta  { font-size: 0.85rem; color: var(--text-muted); margin: 0; }
+.storage-size  {
+  font-size: 1.6rem; font-weight: 800; color: var(--primary);
+  text-align: right; white-space: nowrap;
+}
+.storage-size small { display: block; font-size: 0.75rem; font-weight: 400; color: var(--text-muted); }
+.danger-zone {
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-top: 1rem;
+}
+.danger-zone-title {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--danger);
+  margin: 0 0 0.75rem;
+}
+.storage-section { margin-bottom: 1.5rem; }
+.storage-section:last-child { margin-bottom: 0; }
+.danger-actions { display: flex; flex-direction: column; gap: 0.6rem; }
+.danger-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+
+#delete-modal-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 9000;
+  background: rgba(0,0,0,0.55);
+  align-items: center; justify-content: center;
+  padding: 1rem;
+}
+#delete-modal-overlay.is-open { display: flex; }
+#delete-modal {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 64px rgba(0,0,0,0.35);
+  width: 100%; max-width: 440px;
+  padding: 1.75rem;
+  animation: modal-in 0.15s ease;
+}
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+#delete-modal-title {
+  font-size: 1.1rem; font-weight: 700; margin: 0 0 0.4rem;
+  color: var(--danger);
+}
+#delete-modal-desc {
+  font-size: 0.88rem; color: var(--text-muted);
+  margin: 0 0 1.25rem; line-height: 1.5;
+}
+#delete-modal label {
+  display: block; font-size: 0.82rem; font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+#delete-modal-input {
+  width: 100%; box-sizing: border-box;
+  font-family: var(--font-mono); font-size: 1rem;
+  letter-spacing: 0.05em;
+  border: 2px solid var(--border); border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-soft); color: var(--text);
+  transition: border-color var(--t-fast);
+}
+#delete-modal-input:focus { outline: none; border-color: var(--danger); }
+#delete-modal-actions {
+  display: flex; gap: 0.6rem; margin-top: 1.1rem; justify-content: flex-end;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section admin-page">
+  <div class="container admin-container">
+    <div class="admin-layout">
+      {% include "admin/_sidebar.html" %}
+      <div class="admin-main">
+
+        <header class="section-head">
+          <h1>Storage</h1>
+          <p class="lead">Manage disk usage. All purge actions are logged and cannot be undone.</p>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for cat, msg in messages %}
+            <div class="alert alert-{{ cat }}" style="margin-bottom:1rem;">{{ msg }}</div>
+          {% endfor %}
+        {% endwith %}
+
+        <div class="card storage-section">
+          <div class="storage-card">
+            <div>
+              <p class="storage-label">Submission files</p>
+              <p class="storage-meta">
+                {{ sub_count }} submission{{ 's' if sub_count != 1 else '' }} with attached files.
+                Purging removes files from disk and clears file metadata.
+                Submission records, scores, and notes are kept.
+              </p>
+            </div>
+            <div class="storage-size">
+              {{ sub_bytes }}
+              <small>on disk</small>
+            </div>
+          </div>
+          {% if sub_count > 0 or submission_record_count > 0 %}
+          <div class="danger-zone">
+            <p class="danger-zone-title">Danger zone</p>
+            <div class="danger-actions">
+              {% if sub_count > 0 %}
+              <div class="danger-row">
+                <button type="button" class="btn btn-danger btn-sm js-delete-trigger"
+                        data-action="{{ url_for('admin.storage_purge_submissions') }}"
+                        data-title="Purge submission files"
+                        data-desc="This will permanently delete {{ sub_count }} file(s) ({{ sub_bytes }}) from disk. Submission records, scores, and judge notes are kept. This cannot be undone.">
+                  Purge files only
+                </button>
+                <span class="muted small">Files removed from disk — records preserved.</span>
+              </div>
+              {% endif %}
+              {% if submission_record_count > 0 %}
+              <div class="danger-row">
+                <button type="button" class="btn btn-danger btn-sm js-delete-trigger"
+                        data-action="{{ url_for('admin.storage_purge_submission_records') }}"
+                        data-title="Purge all submission records"
+                        data-desc="This will permanently delete all {{ submission_record_count }} submission record(s), scores, judge notes, and any attached files. This cannot be undone.">
+                  Purge all records + files
+                </button>
+                <span class="muted small">All submission data permanently deleted.</span>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          {% else %}
+          <p class="muted small" style="margin-top:0.75rem;">No submissions on record.</p>
+          {% endif %}
+        </div>
+
+        <div class="card storage-section">
+          <div class="storage-card">
+            <div>
+              <p class="storage-label">Data requests</p>
+              <p class="storage-meta">
+                {{ dr_count }} total request{{ 's' if dr_count != 1 else '' }}
+                ({{ dr_pending }} pending).
+                Only resolved requests can be purged.
+              </p>
+            </div>
+            <div class="storage-size">
+              {{ dr_count }}
+              <small>records</small>
+            </div>
+          </div>
+          {% set resolved_count = dr_count - dr_pending %}
+          {% if resolved_count > 0 %}
+          <div class="danger-zone">
+            <p class="danger-zone-title">Danger zone</p>
+            <div class="danger-row">
+              <button type="button" class="btn btn-danger btn-sm js-delete-trigger"
+                      data-action="{{ url_for('admin.storage_purge_data_requests') }}"
+                      data-title="Purge resolved data requests"
+                      data-desc="This will permanently delete {{ resolved_count }} resolved data request record(s). Pending requests are not affected. This cannot be undone.">
+                Purge {{ resolved_count }} resolved request{{ 's' if resolved_count != 1 else '' }}
+              </button>
+            </div>
+          </div>
+          {% else %}
+          <p class="muted small" style="margin-top:0.75rem;">No resolved requests to purge.</p>
+          {% endif %}
+        </div>
+
+        {% if cache_bytes_raw > 0 %}
+        <div class="card storage-section">
+          <div class="storage-card">
+            <div>
+              <p class="storage-label">Viewer cache</p>
+              <p class="storage-meta">
+                Intermediate conversion files. Safe to clear at any time.
+              </p>
+            </div>
+            <div class="storage-size">
+              {{ cache_bytes }}
+              <small>on disk</small>
+            </div>
+          </div>
+          <div class="danger-zone">
+            <p class="danger-zone-title">Danger zone</p>
+            <div class="danger-row">
+              <button type="button" class="btn btn-danger btn-sm js-delete-trigger"
+                      data-action="{{ url_for('admin.storage_purge_viewer_cache') }}"
+                      data-title="Clear viewer cache"
+                      data-desc="This will delete {{ cache_bytes }} of cached conversion files. The cache will be rebuilt automatically on next access.">
+                Clear viewer cache
+              </button>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="card storage-section">
+          <div class="storage-card">
+            <div>
+              <p class="storage-label">Email logs</p>
+              <p class="storage-meta">
+                {{ email_log_count }} email log record{{ 's' if email_log_count != 1 else '' }}.
+                Logs are used by the Email Analytics page and track delivery and open status.
+                OTP body content is never stored.
+              </p>
+            </div>
+            <div class="storage-size">
+              {{ email_log_count }}
+              <small>records</small>
+            </div>
+          </div>
+          {% if email_log_count > 0 %}
+          <div class="danger-zone">
+            <p class="danger-zone-title">Danger zone</p>
+            <div class="danger-row">
+              <button type="button" class="btn btn-danger btn-sm js-delete-trigger"
+                      data-action="{{ url_for('admin.email_analytics_purge') }}"
+                      data-title="Purge email logs"
+                      data-desc="This will permanently delete all {{ email_log_count }} email log record(s) including open-tracking data. This cannot be undone.">
+                Purge all email logs
+              </button>
+              <span class="muted small">All email delivery and open tracking records deleted.</span>
+            </div>
+          </div>
+          {% else %}
+          <p class="muted small" style="margin-top:0.75rem;">No email logs on record.</p>
+          {% endif %}
+        </div>
+
+        <div class="card" style="background:var(--bg-soft);">
+          <p class="muted small" style="margin:0;">
+            The audit log cannot be cleared from this panel. All purge actions are recorded
+            with the acting user, timestamp, and item counts.
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<div id="delete-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+  <div id="delete-modal">
+    <h2 id="delete-modal-title">Confirm deletion</h2>
+    <p id="delete-modal-desc"></p>
+    <label for="delete-modal-input">Type <strong>DELETE</strong> to confirm</label>
+    <input id="delete-modal-input" type="text" autocomplete="off"
+           spellcheck="false" placeholder="DELETE">
+    <div id="delete-modal-actions">
+      <button type="button" class="btn btn-ghost" id="delete-cancel-btn">Cancel</button>
+      <form id="delete-confirm-form" method="post" style="margin:0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-danger" id="delete-confirm-btn" disabled>
+          Confirm
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var overlay    = document.getElementById("delete-modal-overlay");
+  var titleEl    = document.getElementById("delete-modal-title");
+  var descEl     = document.getElementById("delete-modal-desc");
+  var inputEl    = document.getElementById("delete-modal-input");
+  var confirmBtn = document.getElementById("delete-confirm-btn");
+  var cancelBtn  = document.getElementById("delete-cancel-btn");
+  var form       = document.getElementById("delete-confirm-form");
+
+  function open(action, title, desc) {
+    titleEl.textContent = title;
+    descEl.textContent  = desc;
+    form.action         = action;
+    inputEl.value       = "";
+    confirmBtn.disabled = true;
+    overlay.classList.add("is-open");
+
+    requestAnimationFrame(function() { inputEl.focus(); });
+  }
+
+  function close() {
+    overlay.classList.remove("is-open");
+    inputEl.value = "";
+    confirmBtn.disabled = true;
+  }
+
+  inputEl.addEventListener("input", function() {
+    confirmBtn.disabled = (inputEl.value !== "DELETE");
+  });
+
+  cancelBtn.addEventListener("click", close);
+
+  overlay.addEventListener("click", function(e) {
+    if (e.target === overlay) close();
+  });
+
+  document.addEventListener("keydown", function(e) {
+    if (e.key === "Escape") close();
+  });
+
+  document.querySelectorAll(".js-delete-trigger").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      open(
+        btn.dataset.action,
+        btn.dataset.title,
+        btn.dataset.desc
+      );
+    });
+  });
+})();
+</script>
+{% endblock %}

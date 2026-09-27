@@ -1,0 +1,20 @@
+{# Dashboard sub-navigation. Order: Academy, Tasks, Submissions, Submit. #}
+{% set active = active_dashboard_tab|default('') %}
+<nav class="dashboard-nav" aria-label="Dashboard sections">
+  <a href="{{ url_for('participant.academy') }}"
+     class="dn-link {% if active == 'academy' %}is-active{% endif %}">
+    Academy
+  </a>
+  <a href="{{ url_for('participant.tasks') }}"
+     class="dn-link {% if active == 'tasks' %}is-active{% endif %}">
+    Tasks
+  </a>
+  <a href="{{ url_for('participant.submissions') }}"
+     class="dn-link {% if active == 'submissions' %}is-active{% endif %}">
+    Submissions
+  </a>
+  <a href="{{ url_for('participant.submit') }}"
+     class="dn-link dn-link-cta {% if active == 'submit' %}is-active{% endif %}">
+    Submit work
+  </a>
+</nav>

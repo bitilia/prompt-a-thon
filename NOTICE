@@ -1,0 +1,16 @@
+prompt-a-thon
+Copyright 2026 The prompt-a-thon authors
+
+This product is licensed under the Apache License, Version 2.0.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+This distribution includes third-party components:
+
+- static/vendor/d3.min.js — D3, ISC License. https://d3js.org
+- static/vendor/topojson.min.js — TopoJSON client, ISC License. https://github.com/topojson/topojson-client
+- static/world-110m.json — Natural Earth data via TopoJSON, public domain source data
+- static/fonts/RobotoMono.ttf — Roboto Mono, Apache License 2.0
+
+Those files keep their own upstream notices where the upstream distribution included them.

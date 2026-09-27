@@ -1,0 +1,49 @@
+{
+  "tasks": [
+    {
+      "id": "task-1",
+      "title": "Latin Through AI",
+      "description": "Choose a short Latin passage, inscription, or historical text and produce a translation and analysis of its meaning, grammar, and cultural context. Compare your interpretation with at least one academic or classroom source, then evaluate where your final response was accurate, misleading, or incomplete. You should demonstrate effective use of AI throughout the task and briefly reflect on how your interaction with AI influenced the quality and development of your work.",
+      "difficulty": "Latin",
+      "format": "Written report or annotated slide deck",
+      "max_words": 800,
+      "tags": [
+        "translation",
+        "language-analysis",
+        "classics",
+        "ai-assisted-learning"
+      ],
+      "links": []
+    },
+    {
+      "id": "task-2",
+      "title": "AI Market Simulation",
+      "description": "Investigate a simple economic scenario such as inflation, supply and demand changes, taxation, or pricing strategy and present your findings using data, predictions, explanations, graphs, or tables where appropriate. Reflect on how your use of AI influenced the quality, accuracy, and development of your economic analysis while focusing primarily on producing a clear and well-reasoned investigation.",
+      "difficulty": "Economics",
+      "format": "Reflective report with screenshots",
+      "max_words": 1000,
+      "tags": [
+        "economics",
+        "simulation",
+        "analysis",
+        "ai-tools"
+      ],
+      "links": []
+    },
+    {
+      "id": "task-3",
+      "title": "AI-Assisted Product Design",
+      "description": "Design a simple digital product or prototype using a CAD or modelling tool such as Tinkercad, Fusion 360, or similar software. Document your development process from concept to final outcome and explain how AI influenced your workflow, decision-making, and problem-solving during the project.",
+      "difficulty": "DET",
+      "format": "Design portfolio or development log",
+      "max_words": 1200,
+      "tags": [
+        "3d-design",
+        "cad",
+        "problem-solving",
+        "design-process"
+      ],
+      "links": []
+    }
+  ]
+}

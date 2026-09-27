@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% set active_dashboard_tab = 'tasks' %}
+{% block title %}{{ PAGE_CONTENT.tasks_title }} &middot; {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container">
+    {% include "dashboard/_nav.html" %}
+
+    <header class="section-head">
+      <h1>{{ PAGE_CONTENT.tasks_title }}</h1>
+      <p class="lead">{{ PAGE_CONTENT.tasks_subtitle }}</p>
+    </header>
+
+    <div class="task-grid">
+      {% for t in tasks %}
+        <article class="task-card">
+          <header>
+            <h3>{{ t.title }}</h3>
+            {% if t.difficulty %}<span class="badge">{{ t.difficulty }}</span>{% endif %}
+          </header>
+          <p>{{ t.description }}</p>
+
+          <dl class="task-meta">
+            {% if t.format %}<dt>Format</dt><dd>{{ t.format }}</dd>{% endif %}
+            {% if t.max_words %}<dt>Max words</dt><dd>{{ t.max_words }}</dd>{% endif %}
+            {% if t.tags %}
+              <dt>Tags</dt>
+              <dd>
+                {% for tag in t.tags %}<span class="tag-chip">{{ tag }}</span>{% endfor %}
+              </dd>
+            {% endif %}
+          </dl>
+
+          {% if t.links %}
+            <div class="task-links">
+              {% for link in t.links %}
+                <a href="{{ link.url }}" target="_blank" rel="noopener noreferrer"
+                   class="task-link">
+                  <span>{{ link.label }}</span>
+                  <svg class="ext-icon" viewBox="0 0 24 24" width="14" height="14"
+                       fill="none" stroke="currentColor" stroke-width="2"
+                       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M14 3h7v7"/>
+                    <path d="M21 3l-9 9"/>
+                    <path d="M19 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h6"/>
+                  </svg>
+                </a>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+          <div class="task-actions">
+            {% if submission_open %}
+              <a href="{{ url_for('participant.submit') }}?task_id={{ t.id }}"
+                 class="btn btn-primary btn-sm">Submit for this task</a>
+            {% else %}
+              <span class="badge badge-muted">Submissions closed</span>
+            {% endif %}
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

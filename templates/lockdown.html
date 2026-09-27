@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ APP_NAME }}</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+  <main class="lockdown-page">
+    <div class="container narrow center">
+      <h1>{{ APP_NAME }}</h1>
+      <p class="lead">{{ message }}</p>
+      <p class="muted small">
+        <a href="{{ url_for('auth.login') }}">Administrator sign-in</a>
+      </p>
+    </div>
+  </main>
+</body>
+</html>
