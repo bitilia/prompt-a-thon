@@ -1,6 +1,6 @@
 # prompt-a-thon
 
-##This project used to be distributed under a different name. It is no longer being actively maintained.
+## This project used to be distributed under a different name. It is no longer being actively maintained.
 
 Self-hosted competition app: registration, email one-time codes, optional Microsoft sign-in, tasks, PDF and DOCX submissions, judging, certificates, and an admin panel.
 
